@@ -148,11 +148,24 @@ class SierraAPIv6:
                     self.base_url + 'info/token'
                 )
 
-                self.logger.info(f"Sierra response status code                  : {response.status_code}")
-                self.logger.info(f"Sierra 'expiresIn'                           : {response.json().get('expiresIn')}")
+                try:
+                    status_code = response.status_code
+                except ValueError:
+                    status_code = ''
+                try:
+                    expires_in = response.json().get('expiresIn')
+                except ValueError:
+                    expires_in = ''
+                try:
+                    url = response.url
+                except ValueError:
+                    url = ''
+
+                self.logger.info(f"Sierra response status code                  : {status_code}")
+                self.logger.info(f"Sierra 'expiresIn'                           : {expires_in}")
                 self.logger.info(f"session expires at (UNIX Epoch)              : {self.expires_at}")
                 self.logger.info(f"seconds left                                 : {self.expires_at - time()}")
-                self.logger.info(f"request url                                  : {response.url}")
+                self.logger.info(f"request url                                  : {url}")
                 # self.logger.info(f"resonse json                                 : {response.json()}\n")
 
             return func(self, *args, **kwargs)   
@@ -174,6 +187,7 @@ class SierraAPIv6:
         - None if the response is not 200, but indicates that there are no records 
           (404 is not an error, just part of the sierra rest design)
         """
+        
         endpoint = self.base_url + endpoint
 
         self.request_count += 1
@@ -183,6 +197,12 @@ class SierraAPIv6:
         # self.logger.info(f"GET {\"enpoint\": \"{endpoint}\", \"params\": \"{params}\"}")
         self.logger.info(f'GET {{"endpoint": "{endpoint}"}}')
         self.logger.info(f'GET {{"params": "{params}"}}')
+        
+        # send the get request
+        response = self.session.get(
+            self.base_url.rstrip('/') + '/info/token'
+        )
+
         response = self.session.get(endpoint, params=params)
         if response.status_code != 200:
             self.logger.info(f"GET response non-200 : {response.text}")
