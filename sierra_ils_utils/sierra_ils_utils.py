@@ -1,143 +1,13 @@
 import functools
 import logging
-from time import sleep, time
-from typing import Optional, List, Dict, Union, Any
 import requests
+from .sierra_api_v6_models import BibResultSet, ErrorCode
+from time import sleep, time
+from typing import Any
 
 # Set up the logger at the module level
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # Set default level, but this can be configured elsewhere
-
-# Define the data models
-class ErrorCode:
-    code: int
-    specificCode: int
-    httpStatus: int
-    name: str
-    description: Optional[str]
-
-class Language:
-    code: str
-    name: Optional[str]
-
-class MarcSubField:
-    code: str
-    data: str
-
-class FieldData:
-    subfields: List[MarcSubField]
-    ind1: str
-    ind2: str
-
-class MarcField:
-    tag: str
-    value: Optional[str]
-    data: Optional[FieldData]
-
-class Marc:
-    leader: str
-    fields: List[MarcField]
-
-class MaterialType:
-    code: str
-    value: Optional[str]
-
-class BibLevel:
-    code: str
-    value: Optional[str]
-
-class Country:
-    code: str
-    name: str
-
-class Location:
-    code: str
-    name: str
-
-class OrderInfo:
-    orderId: str
-    location: Location
-    copies: int
-    date: Optional[str]
-
-class FixedFieldVal:
-    value: Union[str, bool, int, float]  # Assuming T can be one of these types
-
-class FixedField:
-    label: str
-    value: Optional[FixedFieldVal]
-    display: Optional[str]
-
-class SubField:
-    tag: str
-    content: str
-
-class VarField:
-    fieldTag: str
-    marcTag: Optional[str]
-    ind1: Optional[str]
-    ind2: Optional[str]
-    content: Optional[str]
-    subfields: Optional[List[SubField]]
-
-class Bib:
-    id: str
-    updatedDate: Optional[str]
-    createdDate: Optional[str]
-    deletedDate: Optional[str]
-    deleted: bool
-    suppressed: Optional[bool]
-    available: Optional[bool]
-    lang: Optional[Language]
-    title: Optional[str]
-    author: Optional[str]
-    marc: Optional[Marc]
-    materialType: Optional[MaterialType]
-    bibLevel: Optional[BibLevel]
-    publishYear: Optional[int]
-    catalogDate: Optional[str]
-    country: Optional[Country]
-    orders: List[OrderInfo]
-    normTitle: Optional[str]
-    normAuthor: Optional[str]
-    locations: List[Location]
-    holdCount: Optional[int]
-    copies: Optional[int]
-    callNumber: Optional[str]
-    volumes: Optional[List[str]]
-    items: Optional[List[str]]
-    fixedFields: Dict[int, FixedField]
-    varFields: List[VarField]
-
-class BibResultSet:
-    total: Optional[int]
-    start: Optional[int]
-    entries: List[Bib]
-
-ENDPOINTS = {
-    "bibs": {
-        "GET": {
-            "path": "/v6/bibs/",
-            "responses": {
-                200: BibResultSet,
-                400: ErrorCode,
-                404: ErrorCode
-                # ... other potential status codes and their corresponding models
-            },
-            "model": BibResultSet
-        },
-        "DELETE": {
-            "path": "/v6/bibs/",
-            "responses": {
-                200: None,
-                204: None,
-                400: ErrorCode,
-                404: ErrorCode
-            },
-            "model": ErrorCode
-        }
-    }
-}
 
 class SierraAPIv6:
     """
@@ -157,7 +27,7 @@ class SierraAPIv6:
             sierra_api_base_url,
             sierra_api_key,
             sierra_api_secret,
-            ENDPOINTS=ENDPOINTS
+            # ENDPOINTS=ENDPOINTS
         ):
 
         self.logger = logger
@@ -170,7 +40,30 @@ class SierraAPIv6:
         self.api_key = sierra_api_key
         self.api_secret = sierra_api_secret
 
-        self._endpoints = ENDPOINTS
+        self._endpoints = {
+            "bibs": {
+                "GET": {
+                    "path": "/v6/bibs/",
+                    "responses": {
+                        200: BibResultSet,
+                        400: ErrorCode,
+                        404: ErrorCode
+                        # ... other potential status codes and their corresponding models
+                    },
+                    "model": BibResultSet
+                },
+                "DELETE": {
+                    "path": "/v6/bibs/",
+                    "responses": {
+                        200: None,
+                        204: None,
+                        400: ErrorCode,
+                        404: ErrorCode
+                    },
+                    "model": ErrorCode
+                }
+            }
+        }
 
         # store common urls here?
         self.token_url = self.base_url + 'token'
