@@ -1,9 +1,10 @@
-import functools
+from .decorators import hybrid_retry_decorator, authenticate
 import logging
+from random import uniform
 import requests
 from .sierra_api_v6_models import BibResultSet, ErrorCode
 from time import sleep, time
-from typing import Any
+from typing import Any, Dict
 
 # Set up the logger at the module level
 logger = logging.getLogger(__name__)
@@ -27,14 +28,8 @@ class SierraAPIv6:
             sierra_api_base_url,
             sierra_api_key,
             sierra_api_secret,
-            # ENDPOINTS=ENDPOINTS
         ):
-
         self.logger = logger
-
-        # maximum number of requests we should make for our given session
-        # TODO, should this be a max lifetime of like 3-5 hours perhaps?
-        self.max_request_count = 100  # TODO: set in the config, or at least in the params?
         
         self.base_url = sierra_api_base_url
         self.api_key = sierra_api_key
@@ -43,7 +38,7 @@ class SierraAPIv6:
         self._endpoints = {
             "bibs": {
                 "GET": {
-                    "path": "/v6/bibs/",
+                    "path": "bibs/",
                     "responses": {
                         200: BibResultSet,
                         400: ErrorCode,
@@ -53,7 +48,7 @@ class SierraAPIv6:
                     "model": BibResultSet
                 },
                 "DELETE": {
-                    "path": "/v6/bibs/",
+                    "path": "bibs/",
                     "responses": {
                         200: None,
                         204: None,
@@ -84,119 +79,6 @@ class SierraAPIv6:
             'accept': 'application/json',
             'Authorization': '',
         }
-
-    def hybrid_retry_decorator(max_retries=5, initial_wait_time=3):
-        """
-        Decorator factory to add retry with a hybrid back-off
-        functionality to functions or methods.
-
-        This will effectively catch any exceptions raised in the
-        function it wraps, retrying them with the back-off strategy 
-        """
-        # Define parameters for the hybrid strategy
-        initial_exponential_factor = 2
-        initial_retries = 4
-        fixed_interval = 300  # 5 minutes
-    
-        def decorator(func):
-            def wrapper(self, *args, **kwargs):
-                retries = 0
-                wait_time = initial_wait_time
-                while retries < max_retries:
-                    try:
-                        result = func(self, *args, **kwargs)
-                        return result
-                    except Exception as e:
-                        self.logger.info(
-                            f"Retry attempt {retries + 1} after failure: {str(e)}. Waiting {wait_time} seconds before retrying."
-                        )
-                        if retries == max_retries - 1:
-                            self.logger.error(f"Max retries reached. Function {func.__name__} failed with exception: {str(e)}")
-                            raise e
-                        sleep(wait_time)
-                        retries += 1
-                        if retries < initial_retries:
-                            wait_time *= initial_exponential_factor
-                        else:
-                            wait_time += fixed_interval
-            return wrapper
-        return decorator
-
-    def authenticate(func):
-        """
-        Decorator for use on any of the request functions
-
-        Sets the access token for authenticated requests
-        """
-        @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
-            # if self.request_count >= self.max_request_count:
-            #     self.logger.info("Refreshing Session ...")
-            #     self._initialize_session()  # refresh our session
-            #     self.request_count = 0      # Reset request counter after reinitializing session
-
-            # decide if we need to get a new access token...
-            if (
-                self.session.headers['Authorization'] == ''  # Authorization header not set 
-                or self.expires_at < time()                  # ... or expires_at is in the past
-            ):
-                # Set the request parameters (for authentication and
-                # the grant type)
-                auth = requests.auth.HTTPBasicAuth(
-                    username=self.api_key, 
-                    password=self.api_secret
-                )
-                data = {
-                    "grant_type": "client_credentials"
-                }
-                
-                response = self.session.post(
-                    url=self.token_url, 
-                    auth=auth, 
-                    data=data
-                )
-                
-                if response.status_code == 200:
-                    self.session.headers['Authorization'] = \
-                        'Bearer ' + response.json().get('access_token')
-                    
-                    # set the variable for when this expires at
-                    self.logger.info(f"Authorization Success. response.json.get('expires_in'): {response.json().get('expires_in')}")
-                    self.expires_at = time() + int(response.json().get('expires_in')) - 60  # pad our expiration time by -60 seconds to be safe
-                else:
-                    # If the request failed, raise an exception
-                    raise Exception(f"Failed to obtain access token: {response.text}\n")
-
-
-                self.logger.info(f"Sierra session authenticated")
-                
-                # get some info about our token: e.g. /v6/info/token
-                response = self.session.get(
-                    self.base_url + 'info/token'
-                )
-
-                try:
-                    status_code = response.status_code
-                except ValueError:
-                    status_code = ''
-                try:
-                    expires_in = response.json().get('expiresIn')
-                except ValueError:
-                    expires_in = ''
-                try:
-                    url = response.url
-                except ValueError:
-                    url = ''
-
-                self.logger.info(f"Sierra response status code                  : {status_code}")
-                self.logger.info(f"Sierra 'expiresIn'                           : {expires_in}")
-                self.logger.info(f"session expires at (UNIX Epoch)              : {self.expires_at}")
-                self.logger.info(f"seconds left                                 : {self.expires_at - time()}")
-                self.logger.info(f"request url                                  : {url}")
-                # self.logger.info(f"resonse json                                 : {response.json()}\n")
-
-            return func(self, *args, **kwargs)   
-        return wrapper
 
     @hybrid_retry_decorator()
     @authenticate
@@ -287,7 +169,6 @@ class SierraAPIv6:
         
         return response
     
-
     def request_endpoint(
         self, 
         endpoint: str, 
@@ -328,60 +209,49 @@ class JsonManipulator:
 
     def remove_paths(self, paths, current_obj=None):
         """
-        Remove specified paths or patterns from a JSON object or list. A path 
-        typically represents a precise sequence of keys and/or indices leading to 
-        a specific value--however, for a list, this function will attempt to 
-        remove the specified key from all items in the list.
-      
-        This method is particularly useful when wanting certain parts of the JSON 
-        object to be ignored, e.g., during a json_diff operation.
+        Remove specified paths from a JSON object. A path represents 
+        a precise sequence of keys leading to a specific value.
+    
+        This method is particularly useful when wanting certain parts 
+        of the JSON object to be ignored, e.g., during a json_diff operation.
 
         Parameters:
-        - paths (List[List[Union[str, int]]]): 
+        - paths (List[List[str]]): 
             A list of paths to be removed. Each path is represented
-            as a list of keys (for dictionaries) or indices (for lists).
-        - current_obj (Optional[Union[dict, list]]): 
-            The current JSON object or list being operated on during 
+            as a list of keys.
+        - current_obj (Optional[dict]): 
+            The current JSON object being operated on during 
             recursion. This parameter is mostly used internally and 
             typically doesn't need to be provided by the user.
 
         Returns:
-        - None: The input JSON object or list is modified in place.
+        - None: The input JSON object is modified in place.
         """
         if current_obj is None:
             current_obj = self._json_obj
 
         # Base cases
-        if not paths or (
-            not isinstance(current_obj, dict) 
-            and not isinstance(current_obj, list)
-        ):
+        if not paths or not isinstance(current_obj, dict):
             return self  # Always return self for method chaining
 
-        # If the object is a dictionary:
-        if isinstance(current_obj, dict):
-            for path in paths:
-                # If the first key of the path exists in the dictionary:
-                if path and path[0] in current_obj:
-                    # If this is the last key in the path, delete it from the object
-                    if len(path) == 1:
-                        del current_obj[path[0]]
+        for path in paths:
+            # If the first key of the path exists in the dictionary:
+            if path and path[0] in current_obj:
+                # If this is the last key in the path, delete it from the object
+                if len(path) == 1:
+                    del current_obj[path[0]]
+                else:
+                    # If the next object is a list:
+                    if isinstance(current_obj[path[0]], list):
+                        for item in current_obj[path[0]]:
+                            if isinstance(item, dict) and path[1] in item:
+                                self.remove_paths([path[1:]], current_obj=item)
                     else:
                         # Recursively navigate to the next level with the shortened path
                         self.remove_paths([path[1:]], current_obj=current_obj[path[0]])
-
-        # If the object is a list:
-        elif isinstance(current_obj, list):
-            # For each item in the list:
-            for item in current_obj:
-                # Call the function recursively with the same set of paths
-                self.remove_paths(paths, current_obj=item)
 
         return self  # Ensure that we always return self for method chaining
 
     @property
     def json_obj(self):
         return self._json_obj
-
-    # TODO: other possible methods
-    #   - transform key / value (to replace a patron record id with a pseudonym)    
