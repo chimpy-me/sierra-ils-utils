@@ -1,12 +1,143 @@
 import functools
 import logging
-from time import sleep
+from time import sleep, time
+from typing import Optional, List, Dict, Union, Any
 import requests
-from time import time
 
 # Set up the logger at the module level
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # Set default level, but this can be configured elsewhere
+
+# Define the data models
+class ErrorCode:
+    code: int
+    specificCode: int
+    httpStatus: int
+    name: str
+    description: Optional[str]
+
+class Language:
+    code: str
+    name: Optional[str]
+
+class MarcSubField:
+    code: str
+    data: str
+
+class FieldData:
+    subfields: List[MarcSubField]
+    ind1: str
+    ind2: str
+
+class MarcField:
+    tag: str
+    value: Optional[str]
+    data: Optional[FieldData]
+
+class Marc:
+    leader: str
+    fields: List[MarcField]
+
+class MaterialType:
+    code: str
+    value: Optional[str]
+
+class BibLevel:
+    code: str
+    value: Optional[str]
+
+class Country:
+    code: str
+    name: str
+
+class Location:
+    code: str
+    name: str
+
+class OrderInfo:
+    orderId: str
+    location: Location
+    copies: int
+    date: Optional[str]
+
+class FixedFieldVal:
+    value: Union[str, bool, int, float]  # Assuming T can be one of these types
+
+class FixedField:
+    label: str
+    value: Optional[FixedFieldVal]
+    display: Optional[str]
+
+class SubField:
+    tag: str
+    content: str
+
+class VarField:
+    fieldTag: str
+    marcTag: Optional[str]
+    ind1: Optional[str]
+    ind2: Optional[str]
+    content: Optional[str]
+    subfields: Optional[List[SubField]]
+
+class Bib:
+    id: str
+    updatedDate: Optional[str]
+    createdDate: Optional[str]
+    deletedDate: Optional[str]
+    deleted: bool
+    suppressed: Optional[bool]
+    available: Optional[bool]
+    lang: Optional[Language]
+    title: Optional[str]
+    author: Optional[str]
+    marc: Optional[Marc]
+    materialType: Optional[MaterialType]
+    bibLevel: Optional[BibLevel]
+    publishYear: Optional[int]
+    catalogDate: Optional[str]
+    country: Optional[Country]
+    orders: List[OrderInfo]
+    normTitle: Optional[str]
+    normAuthor: Optional[str]
+    locations: List[Location]
+    holdCount: Optional[int]
+    copies: Optional[int]
+    callNumber: Optional[str]
+    volumes: Optional[List[str]]
+    items: Optional[List[str]]
+    fixedFields: Dict[int, FixedField]
+    varFields: List[VarField]
+
+class BibResultSet:
+    total: Optional[int]
+    start: Optional[int]
+    entries: List[Bib]
+
+ENDPOINTS = {
+    "bibs": {
+        "GET": {
+            "path": "/v6/bibs/",
+            "responses": {
+                200: BibResultSet,
+                400: ErrorCode,
+                404: ErrorCode
+                # ... other potential status codes and their corresponding models
+            },
+            "model": BibResultSet
+        },
+        "DELETE": {
+            "path": "/v6/bibs/",
+            "responses": {
+                200: None,
+                204: None,
+                400: ErrorCode,
+                404: ErrorCode
+            },
+            "model": ErrorCode
+        }
+    }
+}
 
 class SierraAPIv6:
     """
@@ -25,7 +156,8 @@ class SierraAPIv6:
             self,
             sierra_api_base_url,
             sierra_api_key,
-            sierra_api_secret
+            sierra_api_secret,
+            ENDPOINTS=ENDPOINTS
         ):
 
         self.logger = logger
@@ -37,6 +169,8 @@ class SierraAPIv6:
         self.base_url = sierra_api_base_url
         self.api_key = sierra_api_key
         self.api_secret = sierra_api_secret
+
+        self._endpoints = ENDPOINTS
 
         # store common urls here?
         self.token_url = self.base_url + 'token'
@@ -171,7 +305,6 @@ class SierraAPIv6:
             return func(self, *args, **kwargs)   
         return wrapper
 
-    
     @hybrid_retry_decorator()
     @authenticate
     def get(self, endpoint, params=None):
@@ -217,3 +350,145 @@ class SierraAPIv6:
         self.logger.info(f"GET {response.url} {response.status_code} ✅")
         
         return response
+    
+    @hybrid_retry_decorator()
+    @authenticate
+    def post(self, endpoint, data=None, json=None, headers=None):
+        """
+        Sends a POST request to the specified endpoint.
+        
+        Args:
+        - endpoint (str): The API endpoint (relative to the base URL).
+        - data (dict or bytes or str, optional): Data to send in the POST request body.
+        - json (dict, optional): JSON data to send in the POST request body.
+        - headers (dict, optional): Additional headers to include in the request.
+
+        Returns:
+        - Response object from the request.
+        """
+        
+        endpoint = self.base_url + endpoint
+
+        self.request_count += 1
+
+        if headers:
+            # Merge with existing session headers
+            headers = {**self.session.headers, **headers}
+        else:
+            headers = self.session.headers
+
+        # Send the POST request
+        self.logger.info(f'POST {{"endpoint": "{endpoint}"}}')
+        if data:
+            self.logger.info(f'POST data {{"data": "{data}"}}')
+        if json:
+            self.logger.info(f'POST json {{"json": "{json}"}}')
+        
+        response = self.session.post(endpoint, data=data, json=json, headers=headers)
+        
+        if response.status_code not in (200, 201, 204):  # 200 OK, 201 Created, 204 No Content
+            self.logger.info(f"POST response non-200 : {response.text}")
+            raise Exception(f"POST response non-200 : {response.text}")
+
+        self.logger.info(f"POST {response.url} {response.status_code} ✅")
+        
+        return response
+    
+
+    def request_endpoint(
+        self, 
+        endpoint: str, 
+        http_method: str, 
+        params: Dict[str, Any] = {}, 
+        **path_params
+    ) -> Any:
+        """
+        Make a generic request to a defined endpoint in the Sierra API.
+        """
+        # Get the endpoint configuration
+        endpoint_data = self._endpoints[endpoint][http_method]
+
+        # Format the path with any provided path parameters (e.g., bib_id for DELETE)
+        path = endpoint_data["path"].format(**path_params)
+
+        # Use existing methods to ensure authentication and make the request
+
+        if http_method == "GET":
+            response = self.get(
+                endpoint_data["path"].format(**path_params), 
+                params=params
+            )
+        elif http_method == "POST":
+            response = self.post()
+
+        # Check the HTTP status code and parse the response using the associated model
+        model = endpoint_data["responses"].get(response.status_code)
+        if model:
+            return model(**response.json())
+        else:
+            response.raise_for_status()  # Raise an exception for unexpected status codes
+
+
+class JsonManipulator:
+    def __init__(self, json_obj):
+        self._json_obj = json_obj
+
+    def remove_paths(self, paths, current_obj=None):
+        """
+        Remove specified paths or patterns from a JSON object or list. A path 
+        typically represents a precise sequence of keys and/or indices leading to 
+        a specific value--however, for a list, this function will attempt to 
+        remove the specified key from all items in the list.
+      
+        This method is particularly useful when wanting certain parts of the JSON 
+        object to be ignored, e.g., during a json_diff operation.
+
+        Parameters:
+        - paths (List[List[Union[str, int]]]): 
+            A list of paths to be removed. Each path is represented
+            as a list of keys (for dictionaries) or indices (for lists).
+        - current_obj (Optional[Union[dict, list]]): 
+            The current JSON object or list being operated on during 
+            recursion. This parameter is mostly used internally and 
+            typically doesn't need to be provided by the user.
+
+        Returns:
+        - None: The input JSON object or list is modified in place.
+        """
+        if current_obj is None:
+            current_obj = self._json_obj
+
+        # Base cases
+        if not paths or (
+            not isinstance(current_obj, dict) 
+            and not isinstance(current_obj, list)
+        ):
+            return self  # Always return self for method chaining
+
+        # If the object is a dictionary:
+        if isinstance(current_obj, dict):
+            for path in paths:
+                # If the first key of the path exists in the dictionary:
+                if path and path[0] in current_obj:
+                    # If this is the last key in the path, delete it from the object
+                    if len(path) == 1:
+                        del current_obj[path[0]]
+                    else:
+                        # Recursively navigate to the next level with the shortened path
+                        self.remove_paths([path[1:]], current_obj=current_obj[path[0]])
+
+        # If the object is a list:
+        elif isinstance(current_obj, list):
+            # For each item in the list:
+            for item in current_obj:
+                # Call the function recursively with the same set of paths
+                self.remove_paths(paths, current_obj=item)
+
+        return self  # Ensure that we always return self for method chaining
+
+    @property
+    def json_obj(self):
+        return self._json_obj
+
+    # TODO: other possible methods
+    #   - transform key / value (to replace a patron record id with a pseudonym)    

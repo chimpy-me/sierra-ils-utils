@@ -1,14 +1,13 @@
 import logging
 import pytest
 from sierra_ils_utils import SierraAPIv6
-import traceback
+# import traceback
 
-
-logging.basicConfig(filename='app.log', level=logging.DEBUG,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-logger.error(traceback.format_exc())
-logger.info(traceback.format_exc())
+# logging.basicConfig(filename='app.log', level=logging.DEBUG,
+#                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# logger = logging.getLogger(__name__)
+# logger.error(traceback.format_exc())
+# logger.info(traceback.format_exc())
 
 def test_initialize_session():
     # Initialize the API object
@@ -32,13 +31,10 @@ def test_authenticate(mocker):
     mock_response = mocker.Mock()
     mock_response.status_code = 200
     mock_response.text = "{}"
-    # mock_response.text = "{}"  # This simulates an empty JSON body
-    # mock_response.json.side_effect = ValueError("No JSON object could be decoded")  # This will raise an error if .json() is called
     mock_response.json.return_value = {
         'access_token': 'mocked_test_token',
         'expires_in': '3600'
     }
-    
     mocker.patch('requests.Session.post', return_value=mock_response)  # patch requests.Session.post so that it responds with the above
     
     # Initialize the API object and call the authenticate decorated method
@@ -48,7 +44,8 @@ def test_authenticate(mocker):
         sierra_api_secret="api_secret"
     )
     
-    # For demonstration purposes, I'm just calling the 'get' method which uses the 'authenticate' decorator
+    # calling the 'get' method which uses the 'authenticate' decorator
+    # ... the auth only happens (or doesn't) when the one of the other http methods are used
     response = sierra_api.get('info/token')
     
     # Validate that the Authorization header was set correctly
