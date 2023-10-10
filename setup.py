@@ -7,6 +7,7 @@ setup(
     install_requires=[
         "psycopg2-binary==2.9.9",
         "requests==2.31.0",
+        "pydantic==2.4.2",
     ],
     author="Ray Voelker",
     author_email="ray.voelker@gmail.com",

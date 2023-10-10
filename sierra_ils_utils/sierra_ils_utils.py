@@ -1,8 +1,9 @@
 from .decorators import hybrid_retry_decorator, authenticate
+from .sierra_api_v6_endpoints import endpoints
 import logging
 from random import uniform
 import requests
-from .sierra_api_v6_models import BibResultSet, ErrorCode
+from .sierra_api_v6_endpoints import BibResultSet, ErrorCode, TokenInfo
 from time import sleep, time
 from typing import Any, Dict
 
@@ -10,7 +11,7 @@ from typing import Any, Dict
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # Set default level, but this can be configured elsewhere
 
-class SierraAPIv6:
+class SierraRESTAPI:
     """
     SierraAPIv6 class provides methods for tasks involving interacting with the Sierra API
     
@@ -28,6 +29,7 @@ class SierraAPIv6:
             sierra_api_base_url,
             sierra_api_key,
             sierra_api_secret,
+            endpoints=endpoints  # default to the latest set of endpoints. e.g. .sierra_api_v6_endpoints import endpoints
         ):
         self.logger = logger
         
@@ -35,36 +37,31 @@ class SierraAPIv6:
         self.api_key = sierra_api_key
         self.api_secret = sierra_api_secret
 
-        self._endpoints = {
-            "bibs": {
-                "GET": {
-                    "path": "bibs/",
-                    "responses": {
-                        200: BibResultSet,
-                        400: ErrorCode,
-                        404: ErrorCode
-                        # ... other potential status codes and their corresponding models
-                    },
-                    "model": BibResultSet
-                },
-                "DELETE": {
-                    "path": "bibs/",
-                    "responses": {
-                        200: None,
-                        204: None,
-                        400: ErrorCode,
-                        404: ErrorCode
-                    },
-                    "model": ErrorCode
-                }
-            }
-        }
+        self.endpoints = endpoints
 
         # store common urls here?
         self.token_url = self.base_url + 'token'
 
         # finally init the session
         self._initialize_session()
+
+    @staticmethod
+    def format_by_verb(endpoints):
+        by_verb = {}
+
+        for category, methods in endpoints.items():
+            for method, details in methods.items():
+                # Initialize the HTTP verb key if not already present
+                if method not in by_verb:
+                    by_verb[method] = {}
+                
+                full_path = details["path"]
+                by_verb[method][full_path] = {
+                    "responses": details["responses"],
+                    "primary_model": details["model"]
+                }
+
+        return by_verb
 
     def _initialize_session(self):
         self.request_count = 0
@@ -82,6 +79,34 @@ class SierraAPIv6:
 
     @hybrid_retry_decorator()
     @authenticate
+    # def get(self, endpoint, params=None):
+    #     # Validate endpoint
+    #     if endpoint not in self._endpoints:
+    #         raise ValueError(f"Endpoint '{endpoint}' is not defined in _endpoints.")
+        
+    #     # Validate HTTP method
+    #     if 'GET' not in self._endpoints[endpoint]:
+    #         raise ValueError(f"GET method is not allowed for the endpoint '{endpoint}'.")
+        
+    #     # Construct URL
+    #     url = f"{self.base_url}/{self._endpoints[endpoint]['GET']['path']}"
+        
+    #     # Send the GET request
+    #     response = requests.get(url, params=params)
+        
+    #     # Validate and handle the response
+    #     expected_responses = self._endpoints[endpoint]['GET']['responses']
+    #     if response.status_code in expected_responses:
+    #         model = expected_responses[response.status_code]
+    #         # Here, you can further process the response using the model, e.g., validate, parse, etc.
+    #     else:
+    #         # Handle unexpected status codes or other errors
+    #         # For example, log the error or raise an exception
+    #         raise ValueError(f"Received unexpected status code {response.status_code} for endpoint '{endpoint}'.")
+
+    #     return response
+
+
     def get(self, endpoint, params=None):
         """
         Sends a GET request to the specified endpoint.
