@@ -1,16 +1,16 @@
 import logging
 import pytest
-from sierra_ils_utils import SierraAPIv6
+from sierra_ils_utils import SierraRESTAPI
 import traceback
 
-logging.basicConfig(filename='app.log', level=logging.DEBUG,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-logger.error(traceback.format_exc())
-logger.info(traceback.format_exc())
+# logging.basicConfig(filename='app.log', level=logging.DEBUG,
+#                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# logger = logging.getLogger(__name__)
+# logger.error(traceback.format_exc())
+# logger.info(traceback.format_exc())
 
 
-def test_get(mocker):
+def test_get_raw_response(mocker):
     # Mock the requests.post method to always return a successful response for the auth
     mock_auth_response = mocker.Mock()
     mock_auth_response.status_code = 200
@@ -22,7 +22,7 @@ def test_get(mocker):
     mocker.patch('requests.Session.post', return_value=mock_auth_response)  # patch requests.Session.post so that it responds with the above
     
     # Initialize the API object
-    sierra_api = SierraAPIv6(
+    sierra_api = SierraRESTAPI(
         sierra_api_base_url="http://sierra.library.org/",
         sierra_api_key="api_key", 
         sierra_api_secret="api_secret"
@@ -51,4 +51,4 @@ def test_get(mocker):
 
     results = sierra_api.get('items/checkouts', params={"limit": 1, "offset": 0})
     
-    assert results.json()['total'] == 640865
+    assert results.raw_response.json()['total'] == 640865

@@ -5,6 +5,8 @@ from sierra_ils_utils.decorators import hybrid_retry_decorator, authenticate
 import time
 from unittest.mock import Mock, call, patch
 
+# Note: not testing the authenticate decorator here, since it's more integrated into the SierraAPIv6 module
+
 logger = logging.getLogger('__name__')
 
 # Create a mock function that will always raise an exception
@@ -25,16 +27,28 @@ def test_hybrid_retry_decorator():
     with pytest.raises(Exception, match="This method always fails"):
         dummy.failing_method()
 
+def test_hybrid_retry_decorator_transient_failures():
+    class DummyClass:
+        def __init__(self):
+            self.logger = logger
 
-def test_hybrid_retry_decorator_jitter():
+        @hybrid_retry_decorator(max_retries=3, initial_wait_time=1)
+        def transient_failure_method(self):
+            raise requests.ConnectionError("Transient connection error")
+
+    dummy = DummyClass()
+    with pytest.raises(requests.ConnectionError, match="Transient connection error"):
+        dummy.transient_failure_method()
+
+def test_hybrid_retry_decorator_jitter_transient_failures():
     class DummyClass:
         def __init__(self):
             self.logger = logger
             self.sleep_times = []
 
         @hybrid_retry_decorator(max_retries=4, initial_wait_time=1)
-        def failing_method(self):
-            raise Exception("This method always fails")
+        def transient_failure_method(self):
+            raise requests.Timeout("Transient timeout error")
 
     # Override sleep method to capture sleep times
     original_sleep = time.sleep
@@ -45,8 +59,8 @@ def test_hybrid_retry_decorator_jitter():
     time.sleep = mock_sleep
 
     dummy = DummyClass()
-    with pytest.raises(Exception, match="This method always fails"):
-        dummy.failing_method()
+    with pytest.raises(requests.Timeout, match="Transient timeout error"):
+        dummy.transient_failure_method()
 
     # Restore original sleep
     time.sleep = original_sleep
@@ -56,5 +70,3 @@ def test_hybrid_retry_decorator_jitter():
     # Check if each actual sleep time is within 10% of the expected time
     for actual, expected in zip(dummy.sleep_times, expected_times):
         assert 0.9 * expected <= actual <= 1.1 * expected
-
-# not testing the authenticate decorator here, since it's more integrated into the SierraAPIv6 module
