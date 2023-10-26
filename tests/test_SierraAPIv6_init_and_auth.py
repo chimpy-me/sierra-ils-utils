@@ -1,6 +1,6 @@
 import logging
 import pytest
-from sierra_ils_utils import SierraAPIv6
+from sierra_ils_utils import SierraRESTAPI
 # import traceback
 
 # logging.basicConfig(filename='app.log', level=logging.DEBUG,
@@ -11,7 +11,7 @@ from sierra_ils_utils import SierraAPIv6
 
 def test_initialize_session():
     # Initialize the API object
-    sierra_api = SierraAPIv6(
+    sierra_api = SierraRESTAPI(
         sierra_api_base_url="http://sierra.library.org/", 
         sierra_api_key="api_key", 
         sierra_api_secret="api_secret"
@@ -36,9 +36,31 @@ def test_authenticate(mocker):
         'expires_in': '3600'
     }
     mocker.patch('requests.Session.post', return_value=mock_response)  # patch requests.Session.post so that it responds with the above
+
+    # Mock the requests.get method to return a successful response for the actual GET request
+    mock_get_response = mocker.Mock()
+    mock_get_response.status_code = 200
+    mock_get_response.json.return_value = {
+        "keyId": "0HSoFauxNw2tQPYNJhANZ/aJ3zSS",
+        "grantType": "client_credentials",
+        "authorizationScheme": "Bearer",
+        "expiresIn": 3572,
+        "roles": [
+            {
+            "name": "Invoices_Write",
+            "tokenLifetime": 3600,
+            "permissions": [
+                "Invoices_Create",
+                "Invoices_Post",
+                "Invoices_Update"
+            ]
+            },
+        ]
+    }
+    mocker.patch('requests.Session.get', return_value=mock_get_response)  # patch requests.Session.get so that it responds with the above
     
     # Initialize the API object and call the authenticate decorated method
-    sierra_api = SierraAPIv6(
+    sierra_api = SierraRESTAPI(
         sierra_api_base_url="http://sierra.library.org/",
         sierra_api_key="api_key", 
         sierra_api_secret="api_secret"

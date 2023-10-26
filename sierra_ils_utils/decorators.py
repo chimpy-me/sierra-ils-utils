@@ -7,11 +7,13 @@ import functools
 logger = logging.getLogger(__name__)
 
 def hybrid_retry_decorator(
-        max_retries=7, 
+        max_retries=5, 
         initial_wait_time=3,
-        initial_exponential_factor=1.5,
-        initial_retries=5,
-        fixed_interval=150  # 2.5 minutes
+        initial_exponential_factor=2,
+        initial_retries=3,
+        fixed_interval=150,  # 2.5 minutes
+        retry_on_exceptions=None,
+        retry_on_status_codes=None
     ):
     """
     A decorator factory that adds a hybrid retry mechanism to functions/methods.
@@ -29,26 +31,35 @@ def hybrid_retry_decorator(
     - initial_exponential_factor (float): Factor by which the wait time is multiplied after each retry during the exponential back-off phase. Default is 1.5.
     - initial_retries (int): Number of times to employ the exponential back-off before switching to fixed interval retries. Default is 5.
     - fixed_interval (float): Time in seconds to wait between retries after the exponential back-off phase. Default is 150 seconds (2.5 minutes).
+    - retry_on_exceptions (tuple): Exceptions on which to retry. Defaults to requests' transient errors.
+    - retry_on_status_codes (list): List of HTTP status codes on which to retry.
 
     Notes:
     - Random jitter (a random value between +/- 10% of the wait time) is added to the wait time for each retry to avoid synchronized retries.
     - If all retries fail, the last exception raised in the wrapped function will be re-raised.
     
-    Example retry times in seconds from the initial failure with the defaults:
-    3, 4.5, 6.75, 10.12, 15.19, 165.19, 315.19
-
     Returns:
     - A decorated function that will retry upon failure using the hybrid back-off strategy.
     """
+    if retry_on_exceptions is None:
+        # Default exceptions for requests that are generally considered transient
+        retry_on_exceptions = (requests.ConnectionError, requests.Timeout, requests.TooManyRedirects)
+    
+    if retry_on_status_codes is None:
+        # Default status codes to retry on (5XX server errors)
+        retry_on_status_codes = [500, 502, 503, 504]
+
     def decorator(func):
         def wrapper(self, *args, **kwargs):
             retries = 0
             wait_time = initial_wait_time
-            while retries < max_retries:
+            while retries <= max_retries:
                 try:
-                    result = func(self, *args, **kwargs)
-                    return result
-                except Exception as e:
+                    response = func(self, *args, **kwargs)
+                    if response.status_code in retry_on_status_codes:
+                        raise requests.HTTPError(f"HTTP {response.status_code} Error")
+                    return response
+                except retry_on_exceptions as e:
                     self.logger.info(
                         f"Retry attempt {retries + 1} after failure: {str(e)}. Waiting {wait_time} seconds before retrying."
                     )
@@ -58,12 +69,13 @@ def hybrid_retry_decorator(
                     sleep(wait_time)
                     retries += 1
                     if retries < initial_retries:
-                        # increase the wait tim
+                        # Increase the wait time with random jitter
                         wait_time = initial_exponential_factor \
-                            * (wait_time * uniform(0.9, 1.1))  # random jitter
+                            * (wait_time * uniform(0.9, 1.1))
                     else:
+                        # Add fixed interval with random jitter
                         wait_time += fixed_interval \
-                            * (wait_time * uniform(0.9, 1.1))  # random jitter
+                            * uniform(0.9, 1.1)
         return wrapper
     return decorator
 

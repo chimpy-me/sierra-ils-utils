@@ -1,15 +1,23 @@
 from .decorators import hybrid_retry_decorator, authenticate
 from .sierra_api_v6_endpoints import endpoints
 import logging
-from random import uniform
+from pydantic import BaseModel
 import requests
-from .sierra_api_v6_endpoints import BibResultSet, ErrorCode, TokenInfo
 from time import sleep, time
-from typing import Any, Dict
 
 # Set up the logger at the module level
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)  # Set default level, but this can be configured elsewhere
+logger.setLevel(logging.DEBUG)
+
+class SierraAPIResponse:
+    def __init__(
+            self, 
+            data: BaseModel, 
+            raw_response: requests.Response
+        ):
+        self.data = data
+        self.raw_response = raw_response
+        self.status_code = raw_response.status_code
 
 class SierraRESTAPI:
     """
@@ -21,7 +29,7 @@ class SierraRESTAPI:
     sierra_api_secret
 
     Dates in this API are in ISO 8601 date-time string format. 
-    Ranges of dates can be represted as a string like this:
+    Ranges of dates can be represented as a string like this:
     `[2013-09-03T13:17:45Z,2013-09-03T13:37:45Z]`
     """
     def __init__(
@@ -45,24 +53,6 @@ class SierraRESTAPI:
         # finally init the session
         self._initialize_session()
 
-    @staticmethod
-    def format_by_verb(endpoints):
-        by_verb = {}
-
-        for category, methods in endpoints.items():
-            for method, details in methods.items():
-                # Initialize the HTTP verb key if not already present
-                if method not in by_verb:
-                    by_verb[method] = {}
-                
-                full_path = details["path"]
-                by_verb[method][full_path] = {
-                    "responses": details["responses"],
-                    "primary_model": details["model"]
-                }
-
-        return by_verb
-
     def _initialize_session(self):
         self.request_count = 0
         # (expires_at is an interger "timestamp" --seconds since UNIX Epoch
@@ -79,77 +69,66 @@ class SierraRESTAPI:
 
     @hybrid_retry_decorator()
     @authenticate
-    # def get(self, endpoint, params=None):
-    #     # Validate endpoint
-    #     if endpoint not in self._endpoints:
-    #         raise ValueError(f"Endpoint '{endpoint}' is not defined in _endpoints.")
-        
-    #     # Validate HTTP method
-    #     if 'GET' not in self._endpoints[endpoint]:
-    #         raise ValueError(f"GET method is not allowed for the endpoint '{endpoint}'.")
-        
-    #     # Construct URL
-    #     url = f"{self.base_url}/{self._endpoints[endpoint]['GET']['path']}"
-        
-    #     # Send the GET request
-    #     response = requests.get(url, params=params)
-        
-    #     # Validate and handle the response
-    #     expected_responses = self._endpoints[endpoint]['GET']['responses']
-    #     if response.status_code in expected_responses:
-    #         model = expected_responses[response.status_code]
-    #         # Here, you can further process the response using the model, e.g., validate, parse, etc.
-    #     else:
-    #         # Handle unexpected status codes or other errors
-    #         # For example, log the error or raise an exception
-    #         raise ValueError(f"Received unexpected status code {response.status_code} for endpoint '{endpoint}'.")
-
-    #     return response
-
-
-    def get(self, endpoint, params=None):
+    def get(self, template, *args, **kwargs):
         """
         Sends a GET request to the specified endpoint.
-        
+
         Args:
-        - endpoint (str): The API endpoint (relative to the base URL).
-        - params (dict, optional): Query parameters for the GET request.
+        - template (str): The API endpoint (relative to the base URL).
+        - *args: Variable list of arguments to be passed to the requests.get() method.
+        - **kwargs: Arbitrary keyword arguments to be passed to the requests.get() method. 
+                    Commonly used ones include 'params' for query parameters and 'headers' for request headers.
+                    NOTE : use path_params for dynamic endpoints ... 
+                    e.g. : sierra_api.get("volumes/{id}/", path_params={'id': 1234})
 
         Returns:
-        - Response object from the request.
-        - None if the response is not 200, but indicates that there are no records 
-          (404 is not an error, just part of the sierra rest design)
-        """
+        - SierraAPIResponse object containing:
+        - .data: The parsed data as a Pydantic model.
+        - .raw_response: The raw Response object from the request.
         
-        endpoint = self.base_url + endpoint
+        Note:
+        A 404 status code is not treated as an error; it indicates that there are no records 
+        as per the Sierra REST design.
+        """
+
+        # Extract path parameters from kwargs
+        path_params = kwargs.pop('path_params', {})
+        path = template.format(**path_params)
+
+        # Validate the endpoint
+        if template not in self.endpoints['GET']:
+            raise ValueError(f"Endpoint: {path} not defined in endpoints")
+
+        # ensure that the endpoint_url is properly formatted
+        endpoint_url = self.base_url.rstrip('/') + '/' + path.lstrip('/')
 
         self.request_count += 1
 
-        # Send the GET request
-        # self.logger.info(f"Session.get ({self.request_count} / {self.max_request_count} before session refresh) {endpoint} ...")
-        # self.logger.info(f"GET {\"enpoint\": \"{endpoint}\", \"params\": \"{params}\"}")
-        self.logger.info(f'GET {{"endpoint": "{endpoint}"}}')
-        self.logger.info(f'GET {{"params": "{params}"}}')
-        
-        # send the get request
-        response = self.session.get(
-            self.base_url.rstrip('/') + '/info/token'
-        )
+        # Log the request being made
+        self.logger.info(f'GET {{"endpoint": "{endpoint_url}", "params": "{kwargs.get("params", {})}"}}')
 
-        response = self.session.get(endpoint, params=params)
+        # Send the GET request
+        response = self.session.get(endpoint_url, *args, **kwargs)
+
+        # Check for non-200 responses
         if response.status_code != 200:
             self.logger.info(f"GET response non-200 : {response.text}")
-            # 404 responses are "ok" in this context ... maybe other status codes?
             if response.status_code not in (404,):
-                self.logger.info(f"Error: {response.text}")
+                self.logger.error(f"Error: {response.text}")
                 raise Exception(f"GET response non-200 : {response.text}")
             else:
                 self.logger.info(f"GET {response.url} {response.status_code} ❎")
                 return None
 
         self.logger.info(f"GET {response.url} {response.status_code} ✅")
-        
-        return response
+
+        # Parse the response using the appropriate Pydantic model
+        print(f"template: {template}")
+        expected_model = self.endpoints["GET"][template]["response_model"]
+        # parsed_data = expected_model.parse_obj(response.json())
+        parsed_data = expected_model.model_validate(response.json())
+
+        return SierraAPIResponse(parsed_data, response)
     
     @hybrid_retry_decorator()
     @authenticate
@@ -193,39 +172,6 @@ class SierraRESTAPI:
         self.logger.info(f"POST {response.url} {response.status_code} ✅")
         
         return response
-    
-    def request_endpoint(
-        self, 
-        endpoint: str, 
-        http_method: str, 
-        params: Dict[str, Any] = {}, 
-        **path_params
-    ) -> Any:
-        """
-        Make a generic request to a defined endpoint in the Sierra API.
-        """
-        # Get the endpoint configuration
-        endpoint_data = self._endpoints[endpoint][http_method]
-
-        # Format the path with any provided path parameters (e.g., bib_id for DELETE)
-        path = endpoint_data["path"].format(**path_params)
-
-        # Use existing methods to ensure authentication and make the request
-
-        if http_method == "GET":
-            response = self.get(
-                endpoint_data["path"].format(**path_params), 
-                params=params
-            )
-        elif http_method == "POST":
-            response = self.post()
-
-        # Check the HTTP status code and parse the response using the associated model
-        model = endpoint_data["responses"].get(response.status_code)
-        if model:
-            return model(**response.json())
-        else:
-            response.raise_for_status()  # Raise an exception for unexpected status codes
 
 
 class JsonManipulator:
