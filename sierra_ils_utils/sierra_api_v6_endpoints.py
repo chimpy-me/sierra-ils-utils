@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, List, Dict, Union
+from typing import List, Optional, Union  # Literal
 from pydantic import BaseModel, field_validator
 from datetime import date, datetime, timedelta 
 
@@ -113,8 +113,8 @@ class DateRange(BaseModel):
 
 # id or id range for get params
 class IdRange(BaseModel):
-    start: Optional[int]
-    end: Optional[int]
+    start: Optional[int] = None
+    end: Optional[int] = None
     
     def format_for_api(self):
         # If both start and end are the same, return exact id
@@ -125,56 +125,56 @@ class IdRange(BaseModel):
 
 class Bib(BaseModel):
     id: str
-    updatedDate: Optional[str]
-    createdDate: Optional[str]
-    deletedDate: Optional[str]
+    updatedDate: Optional[str] = None
+    createdDate: Optional[str] = None
+    deletedDate: Optional[str] = None
     deleted: bool
-    suppressed: Optional[bool]
-    available: Optional[bool]
-    lang: Optional[Language]
-    title: Optional[str]
-    author: Optional[str]
-    marc: Optional[Marc]
-    materialType: Optional[MaterialType]
-    bibLevel: Optional[BibLevel]
-    publishYear: Optional[int]
-    catalogDate: Optional[str]
-    country: Optional[Country]
+    suppressed: Optional[bool] = None
+    available: Optional[bool] = None
+    lang: Optional[Language] = None
+    title: Optional[str] = None
+    author: Optional[str] = None
+    marc: Optional[Marc] = None
+    materialType: Optional[MaterialType] = None
+    bibLevel: Optional[BibLevel] = None
+    publishYear: Optional[int] = None
+    catalogDate: Optional[str] = None
+    country: Optional[Country] = None
     orders: List[OrderInfo]
-    normTitle: Optional[str]
-    normAuthor: Optional[str]
+    normTitle: Optional[str] = None
+    normAuthor: Optional[str] = None
     locations: List[Location]
-    holdCount: Optional[int]
-    copies: Optional[int]
-    callNumber: Optional[str]
-    volumes: Optional[List[str]]
-    items: Optional[List[str]]
+    holdCount: Optional[int] = None
+    copies: Optional[int] = None
+    callNumber: Optional[str] = None
+    volumes: Optional[List[str]] = None
+    items: Optional[List[str]] = None
     fixedFields: Dict[int, FixedField]
     varFields: List[VarField]
 
 class BibLevel(BaseModel):
     code: str
-    value: Optional[str]
+    value: Optional[str] = None
 
 class BibResultSet(BaseModel):
-    total: Optional[int]
-    start: Optional[int]
+    total: Optional[int] = None
+    start: Optional[int] = None
     entries: List[Bib]
 
 class Checkout(BaseModel):
     id: str
     patron: str
     item: str
-    barcode: Optional[str]
-    dueDate: Optional[str]  # may want to use a datetime type if we want to parse the date
-    callNumber: Optional[str]
-    numberOfRenewals: Optional[int]
-    outDate: Optional[str]  # ...consider using datetime type for date parsing
+    barcode: Optional[str] = None
+    dueDate: Optional[str]  = None # may want to use a datetime type if we want to parse the date
+    callNumber: Optional[str] = None
+    numberOfRenewals: Optional[int] = None
+    outDate: Optional[str] = None  # ...consider using datetime type for date parsing
     recallDate: Optional[str] = None  # ...consider using datetime type for date parsing
 
 class CheckoutResultSet(BaseModel):
-    total: Optional[int]
-    start: Optional[int]
+    total: Optional[int] = None
+    start: Optional[int] = None
     entries: List[Checkout]
 
 class Country(BaseModel):
@@ -186,7 +186,7 @@ class ErrorCode(BaseModel):
     specificCode: int
     httpStatus: int
     name: str
-    description: Optional[str]
+    description: Optional[str] = None
 
 class FieldData(BaseModel):
     subfields: List[MarcSubField]
@@ -195,41 +195,41 @@ class FieldData(BaseModel):
 
 class FixedField(BaseModel):
     label: str
-    value: Optional["FixedFieldVal"]
-    display: Optional[str]
+    value: Optional["FixedFieldVal"] = None
+    display: Optional[str] = None
 
 class FixedFieldVal(BaseModel):
     value: Union[str, bool, int, float]
 
 class Item(BaseModel):
     id: str
-    updatedDate: Optional[str]
-    createdDate: Optional[str]
-    deletedDate: Optional[str]
+    updatedDate: Optional[str] = None
+    createdDate: Optional[str] = None
+    deletedDate: Optional[str] = None
     deleted: bool
     suppressed: bool
     bibIds: List[str]
-    location: Optional[Location]
-    status: Optional[ItemStatus]
-    volumes: Optional[List[str]]
-    barcode: Optional[str]
-    callNumber: Optional[str]
-    itemType: Optional[str]
-    transitInfo: Optional[ItemTransitInfo]
-    copyNo: Optional[int]
-    holdCount: Optional[int]
+    location: Optional[Location] = None
+    status: Optional[ItemStatus] = None
+    volumes: Optional[List[str]] = None
+    barcode: Optional[str] = None
+    callNumber: Optional[str] = None
+    itemType: Optional[str] = None
+    transitInfo: Optional[ItemTransitInfo] = None
+    copyNo: Optional[int] = None
+    holdCount: Optional[int] = None
     fixedFields: Dict[int, FixedField]
     varFields: List[VarField]
 
 class ItemResultSet(BaseModel):
-    total: Optional[int]
-    start: Optional[int]
+    total: Optional[int] = None
+    start: Optional[int] = None
     entries: List[Item]
 
 class ItemStatus(BaseModel):
-    code: Optional[str]
-    display: Optional[str]
-    duedate: Optional[str]  # may want to use a datetime type if we want to parse the date
+    code: Optional[str] = None
+    display: Optional[str] = None
+    duedate: Optional[str] = None  # may want to use a datetime type if we want to parse the date
 
 class ItemTransitInfo(BaseModel):
     to: Location
@@ -237,7 +237,7 @@ class ItemTransitInfo(BaseModel):
 
 class Language(BaseModel):
     code: str
-    name: Optional[str]
+    name: Optional[str] = None
 
 class Location(BaseModel):
     code: str
@@ -249,8 +249,8 @@ class Marc(BaseModel):
 
 class MarcField(BaseModel):
     tag: str
-    value: Optional[str]
-    data: Optional[FieldData]
+    value: Optional[str] = None
+    data: Optional[FieldData] = None
 
 class MarcSubField(BaseModel):
     code: str
@@ -258,13 +258,13 @@ class MarcSubField(BaseModel):
 
 class MaterialType(BaseModel):
     code: str
-    value: Optional[str]
+    value: Optional[str] = None
 
 class OrderInfo(BaseModel):
     orderId: str
     location: "Location"
     copies: int
-    date: Optional[str]
+    date: Optional[str] = None
 
 class SubField(BaseModel):
     tag: str
@@ -274,7 +274,7 @@ class TokenInfo(BaseModel):
     # patronId: Optional[str]
     patronId: Optional[str] = None
     keyId: str
-    grantType: Optional[str]
+    grantType: Optional[str] = None
     authorizationScheme: str
     expiresIn: int
     roles: List[TokenInfoRole]
@@ -286,28 +286,28 @@ class TokenInfoRole(BaseModel):
 
 class VarField(BaseModel):
     fieldTag: str
-    marcTag: Optional[str]
-    ind1: Optional[str]
-    ind2: Optional[str]
-    content: Optional[str]
-    subfields: Optional[List[SubField]]
+    marcTag: Optional[str] = None
+    ind1: Optional[str] = None
+    ind2: Optional[str] = None
+    content: Optional[str] = None
+    subfields: Optional[List[SubField]] = None
 
 # Volume Model
 class Volume(BaseModel):
     id: int
-    updatedDate: Optional[str]
-    createdDate: Optional[str]
+    updatedDate: Optional[str] = None
+    createdDate: Optional[str] = None
     deletedDate: Optional[str] = None
     deleted: bool
     holds: Optional[List[str]] = None
-    volume: Optional[str]
-    bibs: Optional[List[str]]
+    volume: Optional[str] = None
+    bibs: Optional[List[str]] = None
     items: Optional[List[str]] = None
     varFields: List[VarField] = None
 
 class VolumeResultSet(BaseModel):
-    total: Optional[int]
-    start: Optional[int]
+    total: Optional[int] = None
+    start: Optional[int] = None
     entries: List[Volume]
 
 # endpoints by HTTP verbs and paths for those verbs

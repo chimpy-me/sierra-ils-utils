@@ -1,8 +1,10 @@
 from .decorators import hybrid_retry_decorator, authenticate
+import json
 from .sierra_api_v6_endpoints import endpoints
 import logging
 from pydantic import BaseModel
 import requests
+from typing import Literal
 from time import sleep, time
 
 # Set up the logger at the module level
@@ -10,6 +12,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 class SierraAPIResponse:
+    """
+    SierraAPIResponse is the default return type for SierraRESTAPI
+    """
     def __init__(
             self, 
             data: BaseModel, 
@@ -77,9 +82,9 @@ class SierraRESTAPI:
         - template (str): The API endpoint (relative to the base URL).
         - *args: Variable list of arguments to be passed to the requests.get() method.
         - **kwargs: Arbitrary keyword arguments to be passed to the requests.get() method. 
-                    Commonly used ones include 'params' for query parameters and 'headers' for request headers.
-                    NOTE : use path_params for dynamic endpoints ... 
-                    e.g. : sierra_api.get("volumes/{id}/", path_params={'id': 1234})
+                Commonly used ones include 'params' for query parameters and 'headers' for request headers.
+                NOTE : use path_params for dynamic endpoints ... 
+                e.g. : sierra_api.get("volumes/{id}/", path_params={'id': 1234})
 
         Returns:
         - SierraAPIResponse object containing:
@@ -95,7 +100,7 @@ class SierraRESTAPI:
         path_params = kwargs.pop('path_params', {})
         path = template.format(**path_params)
 
-        # Validate the endpoint
+        # Validate that the endpoint is defined 
         if template not in self.endpoints['GET']:
             raise ValueError(f"Endpoint: {path} not defined in endpoints")
 
@@ -123,7 +128,7 @@ class SierraRESTAPI:
         self.logger.info(f"GET {response.url} {response.status_code} ✅")
 
         # Parse the response using the appropriate Pydantic model
-        print(f"template: {template}")
+        # print(f"template: {template}")
         expected_model = self.endpoints["GET"][template]["response_model"]
         # parsed_data = expected_model.parse_obj(response.json())
         parsed_data = expected_model.model_validate(response.json())
@@ -226,3 +231,66 @@ class JsonManipulator:
     @property
     def json_obj(self):
         return self._json_obj
+
+
+# Define the Pydantic models for the SierraQueryBuilder
+
+class Target(BaseModel):
+    record_type: Literal['bib', 'item']   # TODO more / others
+    field_tag: str                        # TODO Literals? Fixed Fields?
+
+
+class Expression(BaseModel):
+    operation: Literal['has', 'equals']   # TODO more / others
+    operands: list
+
+
+class LogicalOperator(BaseModel):
+    operator: Literal['and', 'or', 'not']  # TODO is this it?
+
+
+class Query(BaseModel):
+    target: Target
+    expression: Expression
+
+
+class SierraQueryBuilder:
+    """
+    Builds queries for Create Lists and SierraRESTAPI endpoints 
+    """
+    def __init__(self):
+        self.query = {
+            "queries": []
+        }
+
+    def add_simple_query(
+        self,
+        query: Query  # Target, and Expression 
+    ):
+        self.query["queries"].append(query)
+
+    def add_logical_operator(
+        self,
+        logical_operator:LogicalOperator
+    ):
+        # ensure that the previous element of queries is a Query
+        if self.query["queries"] and isinstance(self.query["queries"][-1], Query):
+            self.queries.append(logical_operator)
+        else:
+            raise ValueError("Cannot add a LogicalOperator before adding a Query or after another LogicalOperator.")
+        
+    def build_query(self):
+        """
+        Validate and build the final query.
+        :return: String representation of the JSON query.
+        """
+            
+        return self.query
+
+    def __str__(self):
+        """
+        Returns the string representation of the JSON query.
+        :return: String representation of the JSON query.
+        """
+        return json.dumps(self.build_query(), indent=2)
+
