@@ -23,6 +23,23 @@ class SierraAPIResponse:
         self.raw_response = raw_response
         self.status_code = raw_response.status_code
 
+    def __str__(self) -> str:
+        """
+        implements the string method for the response
+        """
+        
+        data_str  = f"\"status code\":         \"{self.status_code}\"\n"
+        data_str += f"\"response model data\": "
+        data_str += self.data.json(indent=4) if self.data else "{}"
+        
+        return data_str
+    
+    def __repr__(self):
+        """
+        this is so the notebook automatically displays the string representation of the last expression
+        """
+        return self.__str__()
+
 class SierraRESTAPI:
     """
     SierraAPIv6 class provides methods for tasks involving interacting with the Sierra API
