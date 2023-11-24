@@ -15,10 +15,12 @@ class SierraAPIResponse:
     SierraAPIResponse is the default return type for SierraRESTAPI
     """
     def __init__(
-            self, 
+            self,
+            response_model_name: str,
             data: BaseModel, 
             raw_response: requests.Response
         ):
+        self.response_model_name = response_model_name
         self.data = data
         self.raw_response = raw_response
         self.status_code = raw_response.status_code
@@ -152,11 +154,12 @@ class SierraRESTAPI:
         try:
             # parsed_data = expected_model.model_validate(response.json())  # pydantic v2
             parsed_data = expected_model.parse_obj(response.json())
+            model_name = expected_model.__name__  
         except Exception as e:
             self.logger.error(f"Error: {e}")
             parsed_data = None
 
-        return SierraAPIResponse(parsed_data, response)
+        return SierraAPIResponse(model_name, parsed_data, response)
     
     @hybrid_retry_decorator()
     @authenticate
