@@ -105,7 +105,7 @@ class SierraRESTAPI:
         - **kwargs: Arbitrary keyword arguments to be passed to the requests.get() method. 
                 Commonly used ones include 'params' for query parameters and 'headers' for request headers.
                 NOTE : use path_params for dynamic endpoints ... 
-                e.g. : sierra_api.get("volumes/{id}/", path_params={'id': 1234})
+                e.g. : sierra_api.get("items/{id}/", path_params={'id': 1234})
 
         Returns:
         - SierraAPIResponse object containing:
