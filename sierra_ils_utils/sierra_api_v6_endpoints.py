@@ -346,7 +346,8 @@ class Item(BaseModel):
     transitInfo: Optional[ItemTransitInfo] = None
     copyNo: Optional[int] = None
     holdCount: Optional[int] = None
-    fixedFields: Optional[Dict[int, FixedField]] = None
+    # fixedFields: Optional[Dict[int, FixedField]] = None
+    FixedFields: Optional[Dict] = None
     varFields: Optional[List[VarField]] = None
 
 Item.update_forward_refs()
