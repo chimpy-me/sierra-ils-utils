@@ -231,7 +231,7 @@ class Bib(BaseModel):
     updatedDate: Optional[str] = None
     createdDate: Optional[str] = None
     deletedDate: Optional[str] = None
-    deleted: bool
+    deleted: Optional[bool] = None
     suppressed: Optional[bool] = None
     available: Optional[bool] = None
     lang: Optional[Language] = None
