@@ -435,7 +435,7 @@ endpoints = {
         "items/{id}": {
             "description": "Get an item by record ID",
             "responses": {
-                200: ItemResultSet,
+                200: Item,
                 400: ErrorCode,
                 404: ErrorCode
             },
