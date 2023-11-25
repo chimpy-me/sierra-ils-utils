@@ -439,7 +439,7 @@ endpoints = {
                 400: ErrorCode,
                 404: ErrorCode
             },
-            'response_model': ItemResultSet
+            'response_model': Item
         },
         "items/checkouts": {
             "responses": {
