@@ -242,17 +242,18 @@ class Bib(BaseModel):
     publishYear: Optional[int] = None
     catalogDate: Optional[str] = None
     country: Optional[Country] = None
-    orders: Optional[List[OrderInfo]] = None  # Changed to Optional
+    orders: Optional[List[OrderInfo]] = None
     normTitle: Optional[str] = None
     normAuthor: Optional[str] = None
-    locations: Optional[List[Location]] = None  # Changed to Optional
+    locations: Optional[List[Location]] = None
     holdCount: Optional[int] = None
     copies: Optional[int] = None
     callNumber: Optional[str] = None
     volumes: Optional[List[str]] = None
     items: Optional[List[str]] = None
-    fixedFields: Optional[Dict[int, FixedField]] = None  # Changed to Optional
-    varFields: Optional[List[VarField]] = None  # Changed to Optional
+    # fixedFields: Optional[Dict[int, FixedField]] = None
+    fixedFields: Optional[FixedField] = None
+    varFields: Optional[List[VarField]] = None
 
     marc: Optional[Record] = None  # defining this as a pydantic model is a wide-awake nightmare
     @validator('marc', pre=True)
@@ -347,7 +348,7 @@ class Item(BaseModel):
     copyNo: Optional[int] = None
     holdCount: Optional[int] = None
     # fixedFields: Optional[Dict[int, FixedField]] = None
-    FixedFields: Optional[Dict] = None
+    fixedFields: Optional[FixedField] = None
     varFields: Optional[List[VarField]] = None
 
 Item.update_forward_refs()
