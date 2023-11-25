@@ -150,11 +150,14 @@ class SierraRESTAPI:
 
         # Parse the response using the appropriate Pydantic model
         expected_model = self.endpoints["GET"][template]["response_model"]
+        
+        # initialize the model name to None
+        model_name = None
 
         try:
             # parsed_data = expected_model.model_validate(response.json())  # pydantic v2
             parsed_data = expected_model.parse_obj(response.json())
-            model_name = expected_model.__name__  
+            model_name = expected_model.__name__
         except Exception as e:
             self.logger.error(f"Error: {e}")
             parsed_data = None
