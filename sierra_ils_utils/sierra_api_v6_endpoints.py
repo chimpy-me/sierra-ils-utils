@@ -155,10 +155,11 @@ class FixedFieldVal(BaseModel):
 FixedFieldVal.update_forward_refs()
 
 
-class FixedField(BaseModel):
-    label: str
-    value: Optional["FixedFieldVal"] = None
-    display: Optional[str] = None
+# class FixedField(BaseModel):
+#     label: str
+#     value: Optional["FixedFieldVal"] = None
+#     display: Optional[str] = None
+FixedField = Dict  # for now, lets just treat this as a dict
 
 FixedField.update_forward_refs()
 
