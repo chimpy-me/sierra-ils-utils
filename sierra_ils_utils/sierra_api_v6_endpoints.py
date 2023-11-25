@@ -432,6 +432,15 @@ endpoints = {
             },
             'response_model': ItemResultSet
         },
+        "items/{id}": {
+            "description": "Get an item by record ID",
+            "responses": {
+                200: ItemResultSet,
+                400: ErrorCode,
+                404: ErrorCode
+            },
+            'response_model': ItemResultSet
+        },
         "items/checkouts": {
             "responses": {
                 200: CheckoutResultSet,
