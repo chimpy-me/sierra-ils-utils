@@ -334,9 +334,9 @@ class Item(BaseModel):
     updatedDate: Optional[str] = None
     createdDate: Optional[str] = None
     deletedDate: Optional[str] = None
-    deleted: bool
-    suppressed: bool
-    bibIds: List[str]
+    deleted: Optional[bool] = None
+    suppressed: Optional[bool] = None
+    bibIds: Optional[List[str]] = None
     location: Optional[Location] = None
     status: Optional[ItemStatus] = None
     volumes: Optional[List[str]] = None
@@ -346,8 +346,8 @@ class Item(BaseModel):
     transitInfo: Optional[ItemTransitInfo] = None
     copyNo: Optional[int] = None
     holdCount: Optional[int] = None
-    fixedFields: Dict[int, FixedField]
-    varFields: List[VarField]
+    fixedFields: Optional[Dict[int, FixedField]] = None
+    varFields: Optional[List[VarField]] = None
 
 Item.update_forward_refs()
 
