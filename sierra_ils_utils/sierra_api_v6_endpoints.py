@@ -2,130 +2,100 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 import json
 from pydantic import BaseModel, validator # field_validator
-import pymarc
-from pymarc import Record  # using the Record object in the Bib object
-from io import StringIO
+from pymarc import Record, JSONReader, MARCWriter  # using the Record object in the Bib object
+import re
+from io import StringIO, BufferedIOBase
 from typing import List, Optional, Union, Dict
 
-class DateOnlyRange(BaseModel):
-    exact: Optional[str] = None
-    start: Optional[str] = None
-    end: Optional[str] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    
-    # @field_validator("exact", "start", "end")
-    @validator('start', 'end', pre=True)
-    def parse_to_date(cls, v):
-        if not v:
-            return None
-        return date.fromisoformat(v).isoformat()
-    
-    # @field_validator("start_date")
-    @validator('start_date', pre=True)
-    def assign_start_date(cls, v, values):
-        if "start" in values:
-            return date.fromisoformat(values['start'])
+class RecordDateRange(BaseModel):
+    """
+    Date ranges are inclusive.
+    dates can be provided as:
+      - ISO 8601 strings (with or without 'Z')  e.g. '2023-11-01T00:00:00Z'
+      - date-only strings                       e.g. '2023-11-01'
+      - Unix epoch timestamps (integer)         e.g. 1669852800
+    """
+    start_date: Optional[Union[datetime, date]] = None
+    end_date: Optional[Union[datetime, date]] = None
+    exact_date: Optional[Union[datetime, date]] = None
+
+    @validator('start_date', 'end_date', 'exact_date', pre=True)
+    def parse_date(cls, v):
+        if isinstance(v, (datetime, date)):
+            return v
+        if isinstance(v, (str, int, float)):
+            try:
+                if isinstance(v, str):
+                    if 'T' in v:
+                        # Parse as datetime
+                        return datetime.fromisoformat(v.replace('Z', '+00:00'))
+                    else:
+                        # Parse as date
+                        return datetime.strptime(v, '%Y-%m-%d').date()
+                else:  # v is an int or float (Unix epoch)
+                    return datetime.fromtimestamp(v)
+            except ValueError:
+                raise ValueError("Invalid date format")
+
         return None
-    
-    # @field_validator("end_date")
-    @validator('end_date', pre=True)
-    def assign_end_date(cls, v, values):
-        if "end" in values:
-            return date.fromisoformat(values['end'])
-        return None
-    
+
+    def advance_range(self, interval_str: str):
+        """
+        advance the range by a time interval:
+        e.g. the previous end_date becomes the new start_date + 1 second (to prevent overlap), and the new end_date is advanced by the interval
+        
+        interval_str are these possible string values:
+        'minutes=1', 
+        'hours=1',
+        'days=1',
+        'weeks=1'
+        """
+        if not isinstance(self.start_date, datetime) or not isinstance(self.end_date, datetime):
+            raise TypeError("start_date and end_date must be datetime objects")
+
+        if not self.start_date or not self.end_date:
+            raise ValueError("Both start_date and end_date must be set to advance the range")
+
+        if interval_str:
+            # Parse the provided interval string
+            interval_parts = interval_str.split('=')
+            if len(interval_parts) != 2:
+                raise ValueError("Interval string must be in the format 'unit=value'")
+            unit, value = interval_parts
+            try:
+                interval = timedelta(**{unit: int(value)})
+            except (ValueError, TypeError):
+                raise ValueError("Invalid interval string format or value")
+
+        # Update start and end dates
+        # ... need to advance the start date by 1 second so that we don't overlap
+        # ... date ranges are inclusive
+        self.start_date = self.end_date + timedelta(seconds=1)
+        self.end_date += interval
+
+
     def format_for_api(self) -> str:
-        # If exact date is provided, return it
-        if self.exact:
-            return self.exact
+        def format_date(date_obj):
+            if isinstance(date_obj, datetime):
+                return date_obj.isoformat() + 'Z'
+            elif isinstance(date_obj, date):
+                return date_obj.isoformat()
+            return ''
 
-        # If both start and end are the same, return the exact date
-        if self.start and self.end and self.start == self.end:
-            return self.start
+        # if exact date is set, return only that
+        if self.exact_date:
+            return format_date(self.exact_date)
 
-        # If only start is provided
-        if self.start and not self.end:
-            return f"[{self.start},]"
+        # otherwise, return the start and end dates in either [start_date,end_date] or [,end_date] or [start_date,]
+        start = format_date(self.start_date) if self.start_date else ''
+        end = format_date(self.end_date) if self.end_date else ''
 
-        # If only end is provided
-        if not self.start and self.end:
-            return f"[,{self.end}]"
+        return f"[{start},{end}]"
 
-        # If both start and end are provided
-        if self.start and self.end:
-            return f"[{self.start},{self.end}]"
+    def __str__(self) -> str:
+        return self.format_for_api()
 
-        # If neither start nor end is provided, return an empty string
-        return ""
-
-DateOnlyRange.update_forward_refs()
-
-
-class DateRange(BaseModel):
-    exact: Optional[str] = None
-    start: Optional[str] = None
-    end: Optional[str] = None
-    start_datetime: Optional[datetime] = None
-    end_datetime: Optional[datetime] = None
-    
-    # @field_validator("exact", "start", "end")
-    @validator('start', 'end', pre=True)
-    def parse_to_datetime(cls, v):
-        if not v:
-            return None
-        try:
-            return datetime.strptime(v, '%Y-%m-%dT%H:%M:%SZ').isoformat()
-        except ValueError:
-            # If that fails, try parsing as date
-            parsed_date = date.fromisoformat(v)
-            return datetime(parsed_date.year, parsed_date.month, parsed_date.day).isoformat()
-    
-    # @field_validator("start_datetime")
-    @validator('start_datetime', pre=True)
-    def assign_start_datetime(cls, v, values):
-        if "start" in values:
-            return datetime.fromisoformat(values['start'])
-        return None
-    
-    # @field_validator("end_datetime")
-    @validator('end_datetime', pre=True)
-    def assign_end_datetime(cls, v, values):
-        if "end" in values:
-            return datetime.fromisoformat(values['end'])
-        return None
-    
-    def delta(self) -> Optional[timedelta]:
-        if self.start_datetime and self.end_datetime:
-            return self.end_datetime - self.start_datetime
-        return None
-    
-    def format_for_api(self) -> str:
-        # If exact date is provided, return it
-        if self.exact:
-            return self.exact
-
-        # If both start and end are the same, return the exact date or datetime
-        if self.start and self.end and self.start == self.end:
-            return self.start
-
-        # If only start is provided
-        if self.start and not self.end:
-            return f"[{self.start},]"
-
-        # If only end is provided
-        if not self.start and self.end:
-            return f"[,{self.end}]"
-
-        # If both start and end are provided
-        if self.start and self.end:
-            return f"[{self.start},{self.end}]"
-
-        # If neither start nor end is provided, return an empty string
-        return ""
-
-DateRange.update_forward_refs()
-
+RecordDateRange.update_forward_refs()
 
 # id or id range for get params
 class IdRange(BaseModel):
@@ -261,8 +231,9 @@ class Bib(BaseModel):
     def convert_dict_to_marc_record(cls, v):
         if v is not None and isinstance(v, Dict):
             
-            # use JSONReader to read the marc Dict as a string
-            reader = pymarc.reader.JSONReader(
+            # use the Pymarc JSONReader to read the marc Dict as a string
+            # reader = pymarc.reader.JSONReader(
+            reader = JSONReader(
                 json.dumps(v)  # Convert the dict to a JSON string
             )
             record = next(reader.__iter__())  # Get the first record from the iterator
@@ -280,6 +251,32 @@ class BibResultSet(BaseModel):
     total: Optional[int] = None
     start: Optional[int] = None
     entries: List[Bib]
+
+    # def serialize_marc_records(self, file_path: str) -> None:
+    #     """Serializes all MARC records in the entries to a MARC file."""
+    #     with open(file_path, 'wb') as file:
+    #         writer = MARCWriter(file)
+    #         for bib in self.entries:
+    #             if bib.marc:
+    #                 writer.write(bib.marc)
+    def serialize_marc_records(self, file_or_path: Union[str, BufferedIOBase]) -> None:
+        """Serializes all MARC records in the entries to a MARC file or file-like object."""
+        close_file = False
+        if isinstance(file_or_path, str):
+            file = open(file_or_path, 'wb')
+            close_file = True  # Only close the file if we opened it
+        elif isinstance(file_or_path, BufferedIOBase):
+            file = file_or_path
+        else:
+            raise ValueError("file_or_path must be a string or a file-like object")
+
+        writer = MARCWriter(file)
+        for bib in self.entries:
+            if bib.marc:
+                writer.write(bib.marc)
+        
+        if close_file:
+            file.close()  # Close the file only if this method opened it
 
 BibResultSet.update_forward_refs()
 
