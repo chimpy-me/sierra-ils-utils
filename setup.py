@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sierra-ils-utils",
-    version="0.0.1a20231125",
+    version="0.0.1a20231128",
     packages=find_packages(),
     install_requires=[
         "psycopg2-binary>=2.9.9,<3.0.0",
