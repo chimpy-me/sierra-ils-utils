@@ -103,38 +103,55 @@ class SierraRESTAPI:
         - template (str): The API endpoint (relative to the base URL).
         - *args: Variable list of arguments to be passed to the requests.get() method.
         - **kwargs: Arbitrary keyword arguments to be passed to the requests.get() method. 
-                Commonly used ones include 'params' for query parameters and 'headers' for request headers.
-                NOTE : use path_params for dynamic endpoints ... 
-                e.g. : sierra_api.get("items/{id}/", path_params={'id': 1234})
-
+                Currently used kwargs include: 
+                    - 'params' for query parameters
+                    - 'path_params' for dynamic endpoints
+                        NOTE
+                        e.g. : sierra_api.get("items/{id}", path_params={'id': 1234})
+                    - TODO: consider others, like adding to the headers? .. possibly?
+                
         Returns:
         - SierraAPIResponse object containing:
-        - .data: The parsed data as a Pydantic model.
-        - .raw_response: The raw Response object from the request.
+            - .data: The parsed data as a Pydantic model.
+            - .raw_response: The raw Response object from the request.
         
         Note:
         A 404 status code is not treated as an error; it indicates that there are no records 
         as per the Sierra REST design.
         """
 
+        # extract the params from the kwarg
+        params = kwargs.pop('params', {})
+
         # Extract path parameters from kwargs
         path_params = kwargs.pop('path_params', {})
+        
+        # use the extracted path parameters to format the template 
+        # e.g. 'items/{id}' -> 'items/{123}'
         path = template.format(**path_params)
+
+        # ensure that the endpoint_url is properly formatted with the given path
+        endpoint_url = self.base_url.rstrip('/') + '/' + path.lstrip('/')
 
         # Validate that the endpoint is defined 
         if template not in self.endpoints['GET']:
-            raise ValueError(f"Endpoint: {path} not defined in endpoints")
-
+            raise ValueError(f"Endpoint: {template} not defined in endpoints")
+        
         # ensure that the endpoint_url is properly formatted
         endpoint_url = self.base_url.rstrip('/') + '/' + path.lstrip('/')
 
-        self.request_count += 1
-
         # Log the request being made
-        self.logger.info(f'GET {{"endpoint": "{endpoint_url}", "params": "{kwargs.get("params", {})}"}}')
+        self.logger.debug(f'GET {{"endpoint": "{endpoint_url}", "params": "{params}"}}')
 
         # Send the GET request
-        response = self.session.get(endpoint_url, *args, **kwargs)
+        response = self.session.get(
+            endpoint_url, 
+            params=params, 
+            **kwargs
+        )
+        
+        self.request_count += 1
+        self.logger.debug(f'request count: {self.request_count}')
 
         # Check for non-200 responses
         if response.status_code != 200:
@@ -143,10 +160,10 @@ class SierraRESTAPI:
                 self.logger.error(f"Error: {response.text}")
                 raise Exception(f"GET response non-200 : {response.text}")
             else:
-                self.logger.info(f"GET {response.url} {response.status_code} ❎")
+                self.logger.debug(f"GET {response.url} {response.status_code} ❎")
                 return None
 
-        self.logger.info(f"GET {response.url} {response.status_code} ✅")
+        self.logger.debug(f"GET {response.url} {response.status_code} ✅")
 
         # Parse the response using the appropriate Pydantic model
         expected_model = self.endpoints["GET"][template]["response_model"]
@@ -166,46 +183,100 @@ class SierraRESTAPI:
     
     @hybrid_retry_decorator()
     @authenticate
-    def post(self, endpoint, data=None, json=None, headers=None):
+    def post(self, template, json_body, *args, **kwargs):
         """
         Sends a POST request to the specified endpoint.
-        
+
         Args:
-        - endpoint (str): The API endpoint (relative to the base URL).
-        - data (dict or bytes or str, optional): Data to send in the POST request body.
-        - json (dict, optional): JSON data to send in the POST request body.
-        - headers (dict, optional): Additional headers to include in the request.
-
+        - template (str): The API endpoint (relative to the base URL).
+        - *args: Variable list of arguments to be passed to the requests.post() method.
+        - **kwargs: Arbitrary keyword arguments to be passed to the requests.post() method. 
+                Currently used kwargs include: 
+                    - 'params' for query parameters
+                    - 'json_str' the json for the body of the post request 
+                        NOTE
+                        this should be the string representation of the json:
+                        e.g. '{}'
+        - json_body: either a string, or a python dict can be sent as the body
+                
         Returns:
-        - Response object from the request.
+        - SierraAPIResponse object containing:
+            - .data: The parsed data as a Pydantic model.
+            - .raw_response: The raw Response object from the request.
         """
+
+        # extract the params from the kwarg
+        params = kwargs.pop('params', {})
+
+        # we shouldn't need to format a path parameter for post endpoints ... i don't think
+        # # Extract path parameters from kwargs
+        # path_params = kwargs.pop('path_params', {})
+        # path = template.format(**path_params)
+        path = template
+
+        # ensure that the endpoint_url is properly formatted with the given path
+        endpoint_url = self.base_url.rstrip('/') + '/' + path.lstrip('/')
+
+        # Validate that the endpoint is defined 
+        logger.debug(f'"template": {template}')
+        if template not in self.endpoints['POST']:
+            raise ValueError(f"Endpoint: {path} not defined in endpoints")
+
+        # check if the json_body is a dict or a string ... else raise a value error
+        if isinstance(json_body, dict):
+            kwargs['json'] = json_body
         
-        endpoint = self.base_url + endpoint
-
-        self.request_count += 1
-
-        if headers:
-            # Merge with existing session headers
-            headers = {**self.session.headers, **headers}
+        elif isinstance(json_body, str):
+            # convert the json_body to a dict
+            try:
+                kwargs['json'] = json.loads(json_body)
+            except:
+                e = ValueError('json_body: must be valid json')
+                raise e
+                # self.logger.error(f"Error: {e}")
         else:
-            headers = self.session.headers
+            raise ValueError('json_body: must be of type `str` or `dict`')
+        
+        # Log the request being made
+        self.logger.debug(f'POST {{"endpoint": "{endpoint_url}", "params": "{params}"}}')
 
         # Send the POST request
-        self.logger.info(f'POST {{"endpoint": "{endpoint}"}}')
-        if data:
-            self.logger.info(f'POST data {{"data": "{data}"}}')
-        if json:
-            self.logger.info(f'POST json {{"json": "{json}"}}')
-        
-        response = self.session.post(endpoint, data=data, json=json, headers=headers)
-        
-        if response.status_code not in (200, 201, 204):  # 200 OK, 201 Created, 204 No Content
-            self.logger.warning(f"POST response non-200 : {response.text}")  # warn of a non-200 response
-            raise Exception(f"POST response non-200 : {response.text}")
+        response = self.session.post(
+            endpoint_url,   # 
+            params=params,  #
+            **kwargs        # includes the json=json_body
+        )
 
-        self.logger.info(f"POST {response.url} {response.status_code} ✅")
+        self.request_count += 1
+        self.logger.debug(f'request count: {self.request_count}')
+
+        # Check for non-200 responses
+        if response.status_code != 200:
+            self.logger.warning(f"POST response non-200 : {response.text}")
+            if response.status_code not in (404,):
+                self.logger.error(f"Error: {response.text}")
+                raise Exception(f"GET response non-200 : {response.text}")
+            else:
+                self.logger.debug(f"POST {response.url} {response.status_code} ❎")
+                return None
+
+        self.logger.debug(f"POST {response.url} {response.status_code} ✅")
+
+        # Parse the response using the appropriate Pydantic model
+        expected_model = self.endpoints["POST"][template]["response_model"]
         
-        return response
+        # initialize the model name to None
+        model_name = None
+
+        try:
+            # parsed_data = expected_model.model_validate(response.json())  # pydantic v2
+            parsed_data = expected_model.parse_obj(response.json())
+            model_name = expected_model.__name__
+        except Exception as e:
+            self.logger.error(f"Error: {e}")
+            parsed_data = None
+
+        return SierraAPIResponse(model_name, parsed_data, response)
 
 
 class JsonManipulator:
