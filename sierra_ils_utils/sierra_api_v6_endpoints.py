@@ -1,11 +1,15 @@
 from __future__ import annotations
 from datetime import date, datetime, timedelta
+import logging
 import json
 from pydantic import BaseModel, validator # field_validator
 from pymarc import Record, JSONReader, MARCWriter  # using the Record object in the Bib object
 import re
 from io import StringIO, BufferedIOBase
-from typing import List, Optional, Union, Dict
+from typing import List, Optional, Union, Dict, Tuple, Generator
+
+# Set up the logger at the module level
+logger = logging.getLogger(__name__)
 
 class RecordDateRange(BaseModel):
     """
@@ -407,6 +411,30 @@ VolumeResultSet.update_forward_refs()
 class QueryEntry(BaseModel):
     link: str  # a link to the resulting record
 
+    def get_record_type_and_id(self) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Extracts the record type and ID from the link.
+
+        Returns:
+            A tuple of (record_type, record_id).
+            If the pattern is not found or validations fail, (None, None) is returned.
+        """
+        # if we can't validate, then 
+        record_type = None
+        record_id = None
+
+        try:
+            record_type = self.link.split('/')[-2]
+            record_id = self.link.split('/')[-1]
+
+            # Validate that record_id can be converted to an integer
+            record_id = int(record_id)  # This will raise ValueError if record_id is not a valid integer string
+
+        except Exception as e:
+            logger.warn(f'Error: {e}')
+            
+        return record_type, record_id
+        
 QueryEntry.update_forward_refs()
 
 
@@ -414,6 +442,19 @@ class QueryResultSet(BaseModel):
     total: Optional[int] = None  # the total number of results,
     start: Optional[int] = None  # the starting position of this set
     entries: List[QueryEntry]  # the bool search result entries
+
+    @property
+    def entry_ids(self) -> Generator[int, None, None]:
+        """
+        Yields the IDs from all entries.
+
+        Yields:
+            Record IDs. If an ID is not found, it is skipped.
+        """
+        for entry in self.entries:
+            _, entry_id = entry.get_record_type_and_id()
+            if entry_id is not None:
+                yield entry_id
 
 QueryResultSet.update_forward_refs()
 
