@@ -404,6 +404,19 @@ class VolumeResultSet(BaseModel):
 VolumeResultSet.update_forward_refs()
 
 
+class QueryEntry(BaseModel):
+    link: str  # a link to the resulting record
+
+QueryEntry.update_forward_refs()
+
+
+class QueryResultSet(BaseModel): 
+    total: Optional[int] = None  # the total number of results,
+    start: Optional[int] = None  # the starting position of this set
+    entries: List[QueryEntry]  # the bool search result entries
+
+QueryResultSet.update_forward_refs()
+
 # endpoints by HTTP verbs and paths for those verbs
 endpoints = {
     "GET": {
@@ -411,15 +424,23 @@ endpoints = {
             "responses": {
                 200: BibResultSet,
                 400: ErrorCode,
-                404: ErrorCode
+                404: ErrorCode,
                 # ... other potential status codes and their corresponding models
             },
             "response_model": BibResultSet
         },
+        "bibs/{id}": {
+            "responses": {
+                200: Bib,
+                400: ErrorCode,
+                404: ErrorCode,
+            },
+            "response_model": Bib
+        },
         "info/token": {
             # "path": "info/token",
             "responses": {
-                200: TokenInfo
+                200: TokenInfo,
             },
             "response_model": TokenInfo
         },
@@ -428,7 +449,7 @@ endpoints = {
             "responses": {
                 200: ItemResultSet,
                 400: ErrorCode,
-                404: ErrorCode
+                404: ErrorCode,
             },
             'response_model': ItemResultSet
         },
@@ -437,7 +458,7 @@ endpoints = {
             "responses": {
                 200: Item,
                 400: ErrorCode,
-                404: ErrorCode
+                404: ErrorCode,
             },
             'response_model': Item
         },
@@ -445,7 +466,7 @@ endpoints = {
             "responses": {
                 200: CheckoutResultSet,
                 400: ErrorCode,
-                404: ErrorCode
+                404: ErrorCode,
             },
             'response_model': CheckoutResultSet
         },
@@ -453,26 +474,41 @@ endpoints = {
             "responses": {
                 200: VolumeResultSet,
                 400: ErrorCode,
-                404: ErrorCode
+                404: ErrorCode,
             }
         }, 
         "volumes/{id}": {
             "responses": {
                 200: Volume,
                 400: ErrorCode,
-                404: ErrorCode
+                404: ErrorCode,
             },
             "response_model": Volume
         }
     },
+    "POST": {
+        "bibs/query": {
+            """
+            Filter the records by a query in JSON format
+            """
+            "responses": {
+                200: QueryResultSet,
+                400: ErrorCode,
+                404: ErrorCode,
+            },
+            "response_model": QueryResultSet,
+            "body_required": True,
+            "body_format": "json"
+        },
+    },
     "DELETE": {
-        "bibs/": {
+        "bibs/{id}": {
             # "path": "bibs/",
             "responses": {
                 200: None,
                 204: None,
                 400: ErrorCode,
-                404: ErrorCode
+                404: ErrorCode,
             },
             "response_model": ErrorCode
         }
