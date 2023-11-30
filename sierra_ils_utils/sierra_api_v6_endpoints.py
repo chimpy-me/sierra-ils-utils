@@ -99,7 +99,7 @@ class RecordDateRange(BaseModel):
     def __str__(self) -> str:
         return self.format_for_api()
 
-RecordDateRange.update_forward_refs()
+# RecordDateRange.update_forward_refs()
 
 # id or id range for get params
 class IdRange(BaseModel):
@@ -113,20 +113,20 @@ class IdRange(BaseModel):
         
         return f"[{self.start or ''},{self.end or ''}]"
 
-IdRange.update_forward_refs()
+# IdRange.update_forward_refs()
 
 
 class Language(BaseModel):
     code: str
     name: Optional[str] = None
 
-Language.update_forward_refs()
+# Language.update_forward_refs()
 
 
 class FixedFieldVal(BaseModel):
     value: Union[str, bool, int, float]
 
-FixedFieldVal.update_forward_refs()
+# FixedFieldVal.update_forward_refs()
 
 
 # class FixedField(BaseModel):
@@ -142,7 +142,7 @@ class SubField(BaseModel):
     tag: str
     content: str
 
-SubField.update_forward_refs()
+# SubField.update_forward_refs()
 
 
 class FieldData(BaseModel):
@@ -150,35 +150,35 @@ class FieldData(BaseModel):
     ind1: str
     ind2: str
 
-FieldData.update_forward_refs()
+# FieldData.update_forward_refs()
 
 
 class MaterialType(BaseModel):
     code: str
     value: Optional[str] = None
 
-MaterialType.update_forward_refs()
+# MaterialType.update_forward_refs()
 
 
 class BibLevel(BaseModel):
     code: str
     value: Optional[str] = None
 
-BibLevel.update_forward_refs()
+# BibLevel.update_forward_refs()
 
 
 class Country(BaseModel):
     code: str
     name: str
 
-Country.update_forward_refs()
+# Country.update_forward_refs()
 
 
 class Location(BaseModel):
     code: str
     name: str
 
-Location.update_forward_refs()
+# Location.update_forward_refs()
 
 
 class OrderInfo(BaseModel):
@@ -187,7 +187,7 @@ class OrderInfo(BaseModel):
     copies: int
     date: Optional[str] = None
 
-OrderInfo.update_forward_refs()
+# OrderInfo.update_forward_refs()
 
 
 class VarField(BaseModel):
@@ -198,7 +198,7 @@ class VarField(BaseModel):
     content: Optional[str] = None
     subfields: Optional[List[SubField]] = None
 
-VarField.update_forward_refs()
+# VarField.update_forward_refs()
 
 
 class Bib(BaseModel):
@@ -248,7 +248,7 @@ class Bib(BaseModel):
     class Config:
         arbitrary_types_allowed = True  # so we can use pymarc for the bib "Record" object
 
-Bib.update_forward_refs()
+# Bib.update_forward_refs()
 
 
 class BibResultSet(BaseModel):
@@ -282,7 +282,7 @@ class BibResultSet(BaseModel):
         if close_file:
             file.close()  # Close the file only if this method opened it
 
-BibResultSet.update_forward_refs()
+# BibResultSet.update_forward_refs()
 
 
 class Checkout(BaseModel):
@@ -296,7 +296,7 @@ class Checkout(BaseModel):
     outDate: Optional[str] = None  # ...consider using datetime type for date parsing
     recallDate: Optional[str] = None  # ...consider using datetime type for date parsing
 
-Checkout.update_forward_refs()
+# Checkout.update_forward_refs()
 
 
 class CheckoutResultSet(BaseModel):
@@ -304,7 +304,7 @@ class CheckoutResultSet(BaseModel):
     start: Optional[int] = None
     entries: List[Checkout]
 
-CheckoutResultSet.update_forward_refs()
+# CheckoutResultSet.update_forward_refs()
 
 
 class ErrorCode(BaseModel):
@@ -314,7 +314,7 @@ class ErrorCode(BaseModel):
     name: str
     description: Optional[str] = None
 
-ErrorCode.update_forward_refs()
+# ErrorCode.update_forward_refs()
 
 
 class ItemStatus(BaseModel):
@@ -322,14 +322,14 @@ class ItemStatus(BaseModel):
     display: Optional[str] = None
     duedate: Optional[str] = None  # may want to use a datetime type if we want to parse the date
 
-ItemStatus.update_forward_refs()
+# ItemStatus.update_forward_refs()
 
 
 class ItemTransitInfo(BaseModel):
     to: Location
     forHold: bool
 
-ItemTransitInfo.update_forward_refs()
+# ItemTransitInfo.update_forward_refs()
 
 
 class Item(BaseModel):
@@ -353,7 +353,7 @@ class Item(BaseModel):
     fixedFields: Optional[FixedField] = None
     varFields: Optional[List[VarField]] = None
 
-Item.update_forward_refs()
+# Item.update_forward_refs()
 
 
 class ItemResultSet(BaseModel):
@@ -361,7 +361,7 @@ class ItemResultSet(BaseModel):
     start: Optional[int] = None
     entries: List[Item]
 
-ItemResultSet.update_forward_refs()
+# ItemResultSet.update_forward_refs()
 
 
 class TokenInfoRole(BaseModel):
@@ -369,7 +369,7 @@ class TokenInfoRole(BaseModel):
     tokenLifetime: int
     permissions: List[str]
 
-TokenInfoRole.update_forward_refs()
+# TokenInfoRole.update_forward_refs()
 
 
 class TokenInfo(BaseModel):
@@ -381,7 +381,7 @@ class TokenInfo(BaseModel):
     expiresIn: int
     roles: List[TokenInfoRole]
 
-TokenInfo.update_forward_refs()
+# TokenInfo.update_forward_refs()
 
 
 # Volume Model
@@ -397,7 +397,7 @@ class Volume(BaseModel):
     items: Optional[List[str]] = None
     varFields: List[VarField] = None
 
-Volume.update_forward_refs()
+# Volume.update_forward_refs()
 
 
 class VolumeResultSet(BaseModel):
@@ -405,13 +405,35 @@ class VolumeResultSet(BaseModel):
     start: Optional[int] = None
     entries: List[Volume]
 
-VolumeResultSet.update_forward_refs()
+# VolumeResultSet.update_forward_refs()
 
 
 class QueryEntry(BaseModel):
     link: str  # a link to the resulting record
 
-    def get_record_type_and_id(self) -> Tuple[Optional[str], Optional[str]]:
+    def get_id(self) -> Optional[int]:
+        """
+        Extracts the record type and ID from the link.
+
+        Returns:
+            A tuple of (record_type, record_id).
+            If the pattern is not found or validations fail, (None, None) is returned.
+        """
+        # if we can't validate, then 
+        record_id = None
+
+        try:
+            record_id = self.link.split('/')[-1]  # id is at the end of the uri path
+
+            # Validate that record_id can be converted to an integer
+            record_id = int(record_id)  # This will raise ValueError if record_id is not a valid integer string
+
+        except Exception as e:
+            logger.warn(f'Error: {e}')
+            
+        return record_id
+    
+    def get_record_type(self) -> Optional[str]:
         """
         Extracts the record type and ID from the link.
 
@@ -421,27 +443,22 @@ class QueryEntry(BaseModel):
         """
         # if we can't validate, then 
         record_type = None
-        record_id = None
 
         try:
-            record_type = self.link.split('/')[-2]
-            record_id = self.link.split('/')[-1]
-
-            # Validate that record_id can be converted to an integer
-            record_id = int(record_id)  # This will raise ValueError if record_id is not a valid integer string
+            record_type = self.link.split('/')[-2]  # id is at the end of the uri path (before the id)
 
         except Exception as e:
             logger.warn(f'Error: {e}')
             
-        return record_type, record_id
+        return record_type
         
-QueryEntry.update_forward_refs()
+# QueryEntry.update_forward_refs()
 
 
 class QueryResultSet(BaseModel): 
     total: Optional[int] = None  # the total number of results,
     start: Optional[int] = None  # the starting position of this set
-    entries: List[QueryEntry]  # the bool search result entries
+    entries: List[QueryEntry]    # the list of QueryEntry
 
     @property
     def entry_ids(self) -> Generator[int, None, None]:
@@ -452,11 +469,44 @@ class QueryResultSet(BaseModel):
             Record IDs. If an ID is not found, it is skipped.
         """
         for entry in self.entries:
-            _, entry_id = entry.get_record_type_and_id()
+            _, entry_id = entry.get_id()
             if entry_id is not None:
                 yield entry_id
 
-QueryResultSet.update_forward_refs()
+    @property
+    def get_record_types(self) -> Optional[str]:
+        """
+        Extracts the record type from entries and checks if it is consistent.
+
+        Returns:
+            The record type if it is consistent across all entries, otherwise None.
+        """
+        if not self.entries:
+            return None
+
+        record_types = {entry.get_record_type() for entry in self.entries}  # create a set out of the types ...
+        if len(record_types) == 1:                                          # should only be one ...
+            return record_types.pop()                                       # return it
+        else:
+            logger.warning('Inconsistent record types found in entries.')
+            return None
+
+# QueryResultSet.update_forward_refs()
+
+
+# Generic way to update forward references for all Pydantic models
+for name, obj in globals().items():
+    if isinstance(obj, type) and issubclass(obj, BaseModel):
+        obj.update_forward_refs()
+
+
+"""
+# 
+# 
+# Endpoints
+#
+#
+"""
 
 # endpoints by HTTP verbs and paths for those verbs
 endpoints = {
