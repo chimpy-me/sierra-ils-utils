@@ -4,12 +4,20 @@ import logging
 import json
 from pydantic import BaseModel, validator # field_validator
 from pymarc import Record, JSONReader, MARCWriter  # using the Record object in the Bib object
-import re
 from io import StringIO, BufferedIOBase
 from typing import List, Optional, Union, Dict, Tuple, Generator
 
 # Set up the logger at the module level
 logger = logging.getLogger(__name__)
+
+class Version:
+    """
+    print the version info
+    TODO: should this do more?
+    """
+    def __str__(self) -> str:
+        return 'v6'
+
 
 class RecordDateRange(BaseModel):
     """
@@ -99,9 +107,7 @@ class RecordDateRange(BaseModel):
     def __str__(self) -> str:
         return self.format_for_api()
 
-# RecordDateRange.update_forward_refs()
 
-# id or id range for get params
 class IdRange(BaseModel):
     start: Optional[int] = None
     end: Optional[int] = None
@@ -113,20 +119,14 @@ class IdRange(BaseModel):
         
         return f"[{self.start or ''},{self.end or ''}]"
 
-# IdRange.update_forward_refs()
-
 
 class Language(BaseModel):
     code: str
     name: Optional[str] = None
 
-# Language.update_forward_refs()
-
 
 class FixedFieldVal(BaseModel):
     value: Union[str, bool, int, float]
-
-# FixedFieldVal.update_forward_refs()
 
 
 # class FixedField(BaseModel):
@@ -142,43 +142,31 @@ class SubField(BaseModel):
     tag: str
     content: str
 
-# SubField.update_forward_refs()
-
 
 class FieldData(BaseModel):
     subfields: List[SubField]
     ind1: str
     ind2: str
 
-# FieldData.update_forward_refs()
-
 
 class MaterialType(BaseModel):
     code: str
     value: Optional[str] = None
-
-# MaterialType.update_forward_refs()
 
 
 class BibLevel(BaseModel):
     code: str
     value: Optional[str] = None
 
-# BibLevel.update_forward_refs()
-
 
 class Country(BaseModel):
     code: str
     name: str
 
-# Country.update_forward_refs()
-
 
 class Location(BaseModel):
     code: str
     name: str
-
-# Location.update_forward_refs()
 
 
 class OrderInfo(BaseModel):
@@ -186,8 +174,6 @@ class OrderInfo(BaseModel):
     location: "Location"
     copies: int
     date: Optional[str] = None
-
-# OrderInfo.update_forward_refs()
 
 
 class VarField(BaseModel):
@@ -197,8 +183,6 @@ class VarField(BaseModel):
     ind2: Optional[str] = None
     content: Optional[str] = None
     subfields: Optional[List[SubField]] = None
-
-# VarField.update_forward_refs()
 
 
 class Bib(BaseModel):
@@ -248,8 +232,6 @@ class Bib(BaseModel):
     class Config:
         arbitrary_types_allowed = True  # so we can use pymarc for the bib "Record" object
 
-# Bib.update_forward_refs()
-
 
 class BibResultSet(BaseModel):
     total: Optional[int] = None
@@ -282,8 +264,6 @@ class BibResultSet(BaseModel):
         if close_file:
             file.close()  # Close the file only if this method opened it
 
-# BibResultSet.update_forward_refs()
-
 
 class Checkout(BaseModel):
     id: str
@@ -296,15 +276,11 @@ class Checkout(BaseModel):
     outDate: Optional[str] = None  # ...consider using datetime type for date parsing
     recallDate: Optional[str] = None  # ...consider using datetime type for date parsing
 
-# Checkout.update_forward_refs()
-
 
 class CheckoutResultSet(BaseModel):
     total: Optional[int] = None
     start: Optional[int] = None
     entries: List[Checkout]
-
-# CheckoutResultSet.update_forward_refs()
 
 
 class ErrorCode(BaseModel):
@@ -314,22 +290,16 @@ class ErrorCode(BaseModel):
     name: str
     description: Optional[str] = None
 
-# ErrorCode.update_forward_refs()
-
 
 class ItemStatus(BaseModel):
     code: Optional[str] = None
     display: Optional[str] = None
     duedate: Optional[str] = None  # may want to use a datetime type if we want to parse the date
 
-# ItemStatus.update_forward_refs()
-
 
 class ItemTransitInfo(BaseModel):
     to: Location
     forHold: bool
-
-# ItemTransitInfo.update_forward_refs()
 
 
 class Item(BaseModel):
@@ -353,23 +323,17 @@ class Item(BaseModel):
     fixedFields: Optional[FixedField] = None
     varFields: Optional[List[VarField]] = None
 
-# Item.update_forward_refs()
-
 
 class ItemResultSet(BaseModel):
     total: Optional[int] = None
     start: Optional[int] = None
     entries: List[Item]
 
-# ItemResultSet.update_forward_refs()
-
 
 class TokenInfoRole(BaseModel):
     name: str
     tokenLifetime: int
     permissions: List[str]
-
-# TokenInfoRole.update_forward_refs()
 
 
 class TokenInfo(BaseModel):
@@ -380,8 +344,6 @@ class TokenInfo(BaseModel):
     authorizationScheme: str
     expiresIn: int
     roles: List[TokenInfoRole]
-
-# TokenInfo.update_forward_refs()
 
 
 # Volume Model
@@ -397,15 +359,11 @@ class Volume(BaseModel):
     items: Optional[List[str]] = None
     varFields: List[VarField] = None
 
-# Volume.update_forward_refs()
-
 
 class VolumeResultSet(BaseModel):
     total: Optional[int] = None
     start: Optional[int] = None
     entries: List[Volume]
-
-# VolumeResultSet.update_forward_refs()
 
 
 class QueryEntry(BaseModel):
@@ -451,8 +409,6 @@ class QueryEntry(BaseModel):
             logger.warn(f'Error: {e}')
             
         return record_type
-        
-# QueryEntry.update_forward_refs()
 
 
 class QueryResultSet(BaseModel): 
@@ -491,14 +447,12 @@ class QueryResultSet(BaseModel):
             logger.warning('Inconsistent record types found in entries.')
             return None
 
-# QueryResultSet.update_forward_refs()
-
 
 # Generic way to update forward references for all Pydantic models
-for name, obj in globals().items():
-    if isinstance(obj, type) and issubclass(obj, BaseModel):
-        obj.update_forward_refs()
-
+model_classes = [obj for obj in globals().values() 
+                 if isinstance(obj, type) and issubclass(obj, BaseModel)]
+for model_class in model_classes:
+    model_class.update_forward_refs()
 
 """
 # 

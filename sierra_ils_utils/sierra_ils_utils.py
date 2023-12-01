@@ -1,6 +1,6 @@
 from .decorators import hybrid_retry_decorator, authenticate
 import json
-from .sierra_api_v6_endpoints import endpoints
+from .sierra_api_v6_endpoints import endpoints, Version
 import logging
 from pydantic import BaseModel
 import requests
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class SierraAPIResponse:
     """
-    SierraAPIResponse is the default return type for SierraRESTAPI
+    SierraAPIResponse is the default return type for SierraRESTAPI / SierraAPI
     """
     def __init__(
             self,
@@ -30,15 +30,16 @@ class SierraAPIResponse:
         implements the string method for the response
         """
         
-        data_str  = f"\"status code\":         \"{self.status_code}\"\n"
-        data_str += f"\"response model data\": "
+        data_str  = f"\"status_code\"          : \"{self.status_code}\"\n"
+        data_str += f"\"response_model_name\"  : \"{self.response_model_name}\"\n"
+        data_str += f"\"response_model_data\"  : \""
         data_str += self.data.json(indent=4) if self.data else "{}"
         
         return data_str
     
     def __repr__(self):
         """
-        this is so the notebook automatically displays the string representation of the last expression
+        this is so a notebook automatically displays the string representation of the last expression
         """
         return self.__str__()
 
@@ -64,6 +65,8 @@ class SierraRESTAPI:
             log_level=logging.WARNING,  # default the logger to only display warnings
         ):
 
+        # TODO make it easier to switch versions of the endpoints?
+
         self.logger = logger
         self.logger.setLevel(log_level)
         
@@ -78,6 +81,13 @@ class SierraRESTAPI:
 
         # finally init the session
         self._initialize_session()
+
+        # Log the init
+        self.logger.debug(
+            f"""INIT \
+                base_url: {self.base_url}
+                version : {Version}
+        """)
 
     def _initialize_session(self):
         self.request_count = 0
