@@ -4,7 +4,7 @@ from .sierra_api_v6_endpoints import endpoints, Version
 import logging
 from pydantic import BaseModel
 import requests
-from typing import Literal
+from typing import Literal, Dict
 from time import sleep, time
 
 # Set up the logger at the module level
@@ -83,11 +83,8 @@ class SierraRESTAPI:
         self._initialize_session()
 
         # Log the init
-        self.logger.debug(
-            f"""INIT \
-                base_url: {self.base_url}
-                version : {Version}
-        """)
+        self.logger.debug(f"INIT base_url: {self.base_url} endpoints version : {Version}")
+        self.logger.debug(f"INIT session.headers: {self.session.headers} self. : {Version}")
 
     def _initialize_session(self):
         self.request_count = 0
@@ -101,6 +98,19 @@ class SierraRESTAPI:
         self.session.headers = {
             'accept': 'application/json',
             'Authorization': '',
+        }
+    
+    def info(self) -> Dict:
+        """
+        returns a dict of the current status of the class
+        """
+        return {
+            "base_url":         self.base_url,
+            "endpoints":        self.endpoints,
+            "api_key":          self.api_key,
+            "request_count":    self.request_count,
+            "expires_at":       self.expires_at,
+            "session_headers":  self.session.headers
         }
 
     @hybrid_retry_decorator()
