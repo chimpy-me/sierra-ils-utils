@@ -83,8 +83,9 @@ class SierraRESTAPI:
         self._initialize_session()
 
         # Log the init
-        self.logger.debug(f"INIT base_url: {self.base_url} endpoints version : {Version}")
-        self.logger.debug(f"INIT session.headers: {self.session.headers} self. : {Version}")
+        # self.logger.debug(f"INIT base_url: {self.base_url} endpoints version : {Version}")
+        # self.logger.debug(f"INIT session.headers: {self.session.headers} self. : {Version}")
+        self.logger.debug(f"INIT {self.info()}")
 
     def _initialize_session(self):
         self.request_count = 0
@@ -106,11 +107,11 @@ class SierraRESTAPI:
         """
         return {
             "base_url":         self.base_url,
-            "endpoints":        self.endpoints,
             "api_key":          self.api_key,
             "request_count":    self.request_count,
             "expires_at":       self.expires_at,
-            "session_headers":  self.session.headers
+            "session_headers":  self.session.headers,
+            "endpoints":        self.endpoints,
         }
 
     @hybrid_retry_decorator()
