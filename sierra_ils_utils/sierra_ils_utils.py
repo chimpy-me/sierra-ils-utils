@@ -385,34 +385,19 @@ class SierraQueryBuilder:
     def __init__(self):
         self.queries = []
         self.current_query = None
-        self.last_was_operator = False
 
     def start_query(self, record_type, field_tag):
         if self.current_query is not None:
             raise ValueError("Previous query not ended. Use end_query to finish.")
-        if self.last_was_operator:
-            self.last_was_operator = False
         self.current_query = {
             "target": {
-                "record_type": record_type, 
-                "field_tag": field_tag
-            }, 
+                "record": {"type": record_type},
+                "field": {"tag": field_tag}
+            },
             "expr": []
         }
         return self
 
-    # def add_expression(self, op, operands):
-    #     if self.current_query is None:
-    #         raise ValueError("No active query. Use start_query to begin.")
-    #     if not isinstance(operands, list):
-    #         operands = [operands]
-    #     expression = {"op": op, "operands": operands}
-    #     # The line below has been commented out to remove the restriction
-    #     # if self.current_query["expr"] and isinstance(self.current_query["expr"][-1], str):
-    #     #     raise ValueError("Must add logical operator before adding another expression to the same query.")
-    #     self.current_query["expr"].append(expression)
-    #     return self
-    
     def add_expression(self, op, operands):
         if self.current_query is None:
             raise ValueError("No active query. Use start_query to begin.")
@@ -426,23 +411,9 @@ class SierraQueryBuilder:
         )
         return self
 
-    def add_logical_operator(self, operator):
-        if operator not in ['and', 'or']:
-            raise ValueError("Operator must be 'and' or 'or'.")
-        if self.current_query and not isinstance(self.current_query["expr"][-1], str):
-            self.current_query["expr"].append(operator)
-        elif not self.queries or self.last_was_operator:
-            raise ValueError("Cannot add a logical operator at this point.")
-        else:
-            self.queries.append(operator)
-            self.last_was_operator = True
-        return self
-
     def end_query(self):
         if self.current_query is None:
             raise ValueError("No active query to end.")
-        if isinstance(self.current_query["expr"][-1], str):
-            raise ValueError("Cannot end query after a logical operator. Add another expression.")
         if len(self.current_query["expr"]) == 1:
             self.current_query["expr"] = self.current_query["expr"][0]
         self.queries.append(self.current_query)
@@ -452,16 +423,16 @@ class SierraQueryBuilder:
     def build(self):
         if self.current_query is not None:
             raise ValueError("Query not ended. Use end_query to finish.")
-        if self.last_was_operator:
-            raise ValueError("Query structure ended with a logical operator.")
+        if len(self.queries) == 1:
+            return self.queries[0]
         return {"queries": self.queries}
 
     def json(self):
-        return self.build()
+        return json.dumps(self.build(), indent=2)
 
     def __str__(self):
-        return json.dumps(self.build(), indent=2)
-    
-    def __repr__(self) -> str:
+        return self.json()
+
+    def __repr__(self):
         return self.__str__()
 
