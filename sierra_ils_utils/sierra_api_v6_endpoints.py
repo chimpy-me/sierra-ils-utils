@@ -416,21 +416,38 @@ class QueryResultSet(BaseModel):
     start: Optional[int] = None  # the starting position of this set
     entries: List[QueryEntry]    # the list of QueryEntry
 
-    @property
-    def entry_ids(self) -> Generator[int, None, None]:
-        """
-        Yields the IDs from all entries.
+    # @property
+    # def entry_ids(self) -> Generator[int, None, None]:
+    #     """
+    #     TODO: not sure if i want to send a generator, or just a list
+    #     Yields the IDs from all entries.
 
-        Yields:
-            Record IDs. If an ID is not found, it is skipped.
+    #     Yields:
+    #         Record IDs. If an ID is not found, it is skipped.
+    #     """
+    #     for entry in self.entries:
+    #         _, entry_id = entry.get_id()
+    #         if entry_id is not None:
+    #             yield entry_id
+
+    @property
+    def entry_ids(self) -> List[int]:
         """
+        Returns the IDs from all entries as a list.
+
+        Returns:
+            List of record IDs. If an ID is not found, it is skipped.
+        """
+        ids = []
         for entry in self.entries:
             _, entry_id = entry.get_id()
             if entry_id is not None:
-                yield entry_id
+                ids.append(entry_id)
+        return ids
+
 
     @property
-    def get_record_types(self) -> Optional[str]:
+    def record_types(self) -> Optional[str]:
         """
         Extracts the record type from entries and checks if it is consistent.
 
