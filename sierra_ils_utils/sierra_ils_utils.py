@@ -268,7 +268,7 @@ class SierraRESTAPI:
             raise ValueError('json_body: must be of type `str` or `dict`')
         
         # Log the request being made
-        self.logger.debug(f'POST {{"endpoint": "{endpoint_url}", "params": "{params}"}}')
+        self.logger.debug(f'POST {{"endpoint": "{endpoint_url}", "params": "{params}", "json_body": "{json_body}"}}')
 
         # Send the POST request
         response = self.session.post(
