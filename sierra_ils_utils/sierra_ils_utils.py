@@ -425,6 +425,21 @@ class SierraQueryBuilder:
             raise ValueError("No active query to end.")
         if not self.current_query["expr"]:
             raise ValueError("No expression added to the query.")
+        """
+        TODO:
+
+        I don't know if there's a mistake in the manual, or if this works
+        differently for different situations, but it seems like the docs
+        present the `expr` portion of the query as simply being an object
+        and in the case of compiling barcodes, it's an array.
+
+        Here's a bit of code that could make it produce just a single
+        object when there's only one, but I don't know if it's intended
+        to "piece multiple expressions together" or what.
+
+        if len(self.current_query["expr"]) == 1:
+            self.current_query["expr"] = self.current_query["expr"][0]
+        """
         self.queries.append(self.current_query)
         self.current_query = None
         return self
