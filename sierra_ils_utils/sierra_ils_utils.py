@@ -392,19 +392,38 @@ class SierraQueryBuilder:
             raise ValueError("Previous query not ended. Use end_query to finish.")
         if self.last_was_operator:
             self.last_was_operator = False
-        self.current_query = {"target": {"record_type": record_type, "field_tag": field_tag}, "expr": []}
+        self.current_query = {
+            "target": {
+                "record_type": record_type, 
+                "field_tag": field_tag
+            }, 
+            "expr": []
+        }
         return self
 
+    # def add_expression(self, op, operands):
+    #     if self.current_query is None:
+    #         raise ValueError("No active query. Use start_query to begin.")
+    #     if not isinstance(operands, list):
+    #         operands = [operands]
+    #     expression = {"op": op, "operands": operands}
+    #     # The line below has been commented out to remove the restriction
+    #     # if self.current_query["expr"] and isinstance(self.current_query["expr"][-1], str):
+    #     #     raise ValueError("Must add logical operator before adding another expression to the same query.")
+    #     self.current_query["expr"].append(expression)
+    #     return self
+    
     def add_expression(self, op, operands):
         if self.current_query is None:
             raise ValueError("No active query. Use start_query to begin.")
         if not isinstance(operands, list):
             operands = [operands]
-        expression = {"op": op, "operands": operands}
-        # The line below has been commented out to remove the restriction
-        # if self.current_query["expr"] and isinstance(self.current_query["expr"][-1], str):
-        #     raise ValueError("Must add logical operator before adding another expression to the same query.")
-        self.current_query["expr"].append(expression)
+        self.current_query["expr"].append(
+            {
+                "op": op, 
+                "operands": operands
+            }
+        )
         return self
 
     def add_logical_operator(self, operator):
