@@ -363,64 +363,68 @@ class JsonManipulator:
         return self._json_obj
 
 
-# Define the Pydantic models for the SierraQueryBuilder
-
-class Target(BaseModel):
-    record_type: Literal['bib', 'item']   # TODO more / others
-    field_tag: str                        # TODO Literals? Fixed Fields?
-
-
-class Expression(BaseModel):
-    operation: Literal['has', 'equals']   # TODO more / others
-    operands: list
-
-
-class LogicalOperator(BaseModel):
-    operator: Literal['and', 'or', 'not']  # TODO is this it?
-
-
-class Query(BaseModel):
-    target: Target
-    expression: Expression
-
-
 class SierraQueryBuilder:
-    """
-    Builds queries for Create Lists and SierraRESTAPI endpoints 
-    """
     def __init__(self):
-        self.query = {
-            "queries": []
-        }
+        self.queries = []
+        self.current_query = None
+        self.last_was_operator = False
 
-    def add_simple_query(
-        self,
-        query: Query  # Target, and Expression 
-    ):
-        self.query["queries"].append(query)
+    def start_query(self, record_type, field_tag):
+        if self.current_query is not None:
+            raise ValueError("Previous query not ended. Use end_query to finish.")
+        if self.last_was_operator:
+            self.last_was_operator = False
+        self.current_query = {"target": {"record_type": record_type, "field_tag": field_tag}, "expr": []}
+        return self
 
-    def add_logical_operator(
-        self,
-        logical_operator:LogicalOperator
-    ):
-        # ensure that the previous element of queries is a Query
-        if self.query["queries"] and isinstance(self.query["queries"][-1], Query):
-            self.queries.append(logical_operator)
+    def add_expression(self, op, operands):
+        if self.current_query is None:
+            raise ValueError("No active query. Use start_query to begin.")
+        if not isinstance(operands, list):
+            operands = [operands]
+        expression = {"op": op, "operands": operands}
+        # The line below has been commented out to remove the restriction
+        # if self.current_query["expr"] and isinstance(self.current_query["expr"][-1], str):
+        #     raise ValueError("Must add logical operator before adding another expression to the same query.")
+        self.current_query["expr"].append(expression)
+        return self
+
+    def add_logical_operator(self, operator):
+        if operator not in ['and', 'or']:
+            raise ValueError("Operator must be 'and' or 'or'.")
+        if self.current_query and not isinstance(self.current_query["expr"][-1], str):
+            self.current_query["expr"].append(operator)
+        elif not self.queries or self.last_was_operator:
+            raise ValueError("Cannot add a logical operator at this point.")
         else:
-            raise ValueError("Cannot add a LogicalOperator before adding a Query or after another LogicalOperator.")
-        
-    def build_query(self):
-        """
-        Validate and build the final query.
-        :return: String representation of the JSON query.
-        """
-            
-        return self.query
+            self.queries.append(operator)
+            self.last_was_operator = True
+        return self
+
+    def end_query(self):
+        if self.current_query is None:
+            raise ValueError("No active query to end.")
+        if isinstance(self.current_query["expr"][-1], str):
+            raise ValueError("Cannot end query after a logical operator. Add another expression.")
+        if len(self.current_query["expr"]) == 1:
+            self.current_query["expr"] = self.current_query["expr"][0]
+        self.queries.append(self.current_query)
+        self.current_query = None
+        return self
+
+    def build(self):
+        if self.current_query is not None:
+            raise ValueError("Query not ended. Use end_query to finish.")
+        if self.last_was_operator:
+            raise ValueError("Query structure ended with a logical operator.")
+        return {"queries": self.queries}
+
+    def json(self):
+        return self.build()
 
     def __str__(self):
-        """
-        Returns the string representation of the JSON query.
-        :return: String representation of the JSON query.
-        """
-        return json.dumps(self.build_query(), indent=2)
+        return json.dumps(self.build(), indent=2)
+    
+    def __repr__(self) -> str:
+        return self.__str__()
 
