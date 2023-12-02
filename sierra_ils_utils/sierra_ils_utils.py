@@ -18,11 +18,14 @@ class SierraAPIResponse:
             self,
             response_model_name: str,
             data: BaseModel, 
-            raw_response: requests.Response
+            raw_response: requests.Response,
+            prepared_request: requests.PreparedRequest
         ):
+
         self.response_model_name = response_model_name
         self.data = data
         self.raw_response = raw_response
+        self.prepared_request = prepared_request
         self.status_code = raw_response.status_code
 
     def __str__(self) -> str:
@@ -271,14 +274,27 @@ class SierraRESTAPI:
         
         # Log the request being made
         self.logger.debug(f'POST {{"endpoint": "{endpoint_url}", "params": "{params}", "json_body": "{json_body}"}}')
+        
+        # create a request object and then prepare it
+        request = requests.Request(
+            method='POST', 
+            url=endpoint_url,
+            params=params,
+            json=json_body
+        )
+        prepared_request = request.prepare()
+
+        # send the prepared request (POST)
+        response = self.session.send(prepared_request)
 
         # Send the POST request
-        response = self.session.post(
-            endpoint_url,   # 
-            params=params,  #
-            json=json_body
-            # **kwargs        # includes the json=json_body
-        )
+        # response = self.session.post(
+        #     url=endpoint_url,  # 
+        #     params=params,     #
+        #     json=json_body     #
+        # )
+
+        
 
         self.request_count += 1
         self.logger.debug(f'request count: {self.request_count}')
@@ -309,7 +325,7 @@ class SierraRESTAPI:
             self.logger.error(f"Error: {e}")
             parsed_data = None
 
-        return SierraAPIResponse(model_name, parsed_data, response)
+        return SierraAPIResponse(model_name, parsed_data, response, prepared_request)
 
 
 class JsonManipulator:
