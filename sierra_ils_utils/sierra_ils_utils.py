@@ -282,7 +282,8 @@ class SierraRESTAPI:
             params=params,
             json=json_body
         )
-        prepared_request = request.prepare()
+        # prepare the request with the session
+        prepared_request = self.session.prepare_request(request)
 
         # send the prepared request (POST)
         response = self.session.send(prepared_request)
@@ -293,8 +294,6 @@ class SierraRESTAPI:
         #     params=params,     #
         #     json=json_body     #
         # )
-
-        
 
         self.request_count += 1
         self.logger.debug(f'request count: {self.request_count}')
