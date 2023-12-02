@@ -105,9 +105,18 @@ class SierraRESTAPI:
         """
         returns a dict of the current status of the class
         """
+
+        try:
+            # mask all but 8 chars
+            masked_key = self.api_key[:8] + '*' * (len(self.api_key) - 8)
+        except Exception as e:
+            self.logger.warning(f"Error creating masked_key: {e}")
+            masked_key = ""
+
         return {
             "base_url":         self.base_url,
-            "api_key":          self.api_key,
+            # "api_key":          self.api_key,
+            "api_key":          masked_key,
             "request_count":    self.request_count,
             "expires_at":       self.expires_at,
             "session_headers":  self.session.headers,
