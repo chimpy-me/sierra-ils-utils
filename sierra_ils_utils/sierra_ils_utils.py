@@ -213,7 +213,8 @@ class SierraRESTAPI:
     
     @hybrid_retry_decorator()
     @authenticate
-    def post(self, template, json_body, *args, **kwargs):
+    # def post(self, template, json_body, *args, **kwargs):
+    def post(self, template, params=None, json_body=None):
         """
         Sends a POST request to the specified endpoint.
 
@@ -236,7 +237,7 @@ class SierraRESTAPI:
         """
 
         # extract the params from the kwarg
-        params = kwargs.pop('params', {})
+        params = params if params else {}
 
         # we shouldn't need to format a path parameter for post endpoints ... i don't think
         # # Extract path parameters from kwargs
@@ -254,12 +255,13 @@ class SierraRESTAPI:
 
         # check if the json_body is a dict or a string ... else raise a value error
         if isinstance(json_body, dict):
-            kwargs['json'] = json_body
+            # kwargs['json'] = json_body
+            json_body = json_body if json_body else {}
         
         elif isinstance(json_body, str):
             # convert the json_body to a dict
             try:
-                kwargs['json'] = json.loads(json_body)
+                json_body = json.loads(json_body)
             except:
                 e = ValueError('json_body: must be valid json')
                 raise e
@@ -274,7 +276,8 @@ class SierraRESTAPI:
         response = self.session.post(
             endpoint_url,   # 
             params=params,  #
-            **kwargs        # includes the json=json_body
+            json=json_body
+            # **kwargs        # includes the json=json_body
         )
 
         self.request_count += 1
