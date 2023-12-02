@@ -411,11 +411,20 @@ class SierraQueryBuilder:
         )
         return self
 
+    # def end_query(self):
+    #     if self.current_query is None:
+    #         raise ValueError("No active query to end.")
+    #     if len(self.current_query["expr"]) == 1:
+    #         self.current_query["expr"] = self.current_query["expr"][0]
+    #     self.queries.append(self.current_query)
+    #     self.current_query = None
+    #     return self
+
     def end_query(self):
         if self.current_query is None:
             raise ValueError("No active query to end.")
-        if len(self.current_query["expr"]) == 1:
-            self.current_query["expr"] = self.current_query["expr"][0]
+        if not self.current_query["expr"]:
+            raise ValueError("No expression added to the query.")
         self.queries.append(self.current_query)
         self.current_query = None
         return self
