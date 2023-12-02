@@ -440,11 +440,10 @@ class QueryResultSet(BaseModel):
         """
         ids = []
         for entry in self.entries:
-            _, entry_id = entry.get_id()
+            entry_id = entry.get_id()
             if entry_id is not None:
                 ids.append(entry_id)
         return ids
-
 
     @property
     def record_types(self) -> Optional[str]:
