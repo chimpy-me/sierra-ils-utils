@@ -545,6 +545,19 @@ endpoints = {
             "body_required": True,
             "body_format": "json"
         },
+        "items/query": {
+            """
+            Filter the records by a query in JSON format
+            """
+            "responses": {
+                200: QueryResultSet,
+                400: ErrorCode,
+                404: ErrorCode,
+            },
+            "response_model": QueryResultSet,
+            "body_required": True,
+            "body_format": "json"
+        },
     },
     "DELETE": {
         "bibs/{id}": {
