@@ -129,8 +129,8 @@ class SierraRESTAPI:
     def get(
         self, 
         template,
-        params={},
-        path_params={}
+        params=None,
+        path_params=None
         # *args, 
         # **kwargs
     ) -> SierraAPIResponse:
@@ -158,9 +158,15 @@ class SierraRESTAPI:
         as per the Sierra REST design.
         """
 
-        # Set the default limit to 2000 if not specified in params
-        if 'limit' not in params:
-            params['limit'] = 2000
+        if params is None:
+            params = {}
+        if path_params is None:
+            path_params = {}
+
+        # # Set the default limit to 2000 if not specified in params
+        # if 'limit' not in params:
+        #     params['limit'] = 2000
+        # self.logger.debug(f"After setting default limit, params: {params}")
         
         # use the extracted path parameters to format the template 
         # e.g. 'items/{id}' -> 'items/{123}'
@@ -251,8 +257,15 @@ class SierraRESTAPI:
             - .raw_response: The raw Response object from the request.
         """
 
-        # extract the params from the kwarg
-        params = params if params else {}
+        if params is None:
+            params = {}
+        # if path_params is None:
+        #     path_params = {}
+
+        # if 'limit' not in params:
+        #     params['limit'] = 2000
+        # self.logger.debug(f"After setting default limit, params: {params}")
+
 
         # we shouldn't need to format a path parameter for post endpoints ... i don't think
         # # Extract path parameters from kwargs
