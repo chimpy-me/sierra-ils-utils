@@ -4,7 +4,7 @@ from .sierra_api_v6_endpoints import endpoints, Version
 import logging
 from pydantic import BaseModel
 import requests
-from typing import Literal, Dict
+from typing import Literal, Dict, Union
 from time import sleep, time
 
 # Set up the logger at the module level
@@ -19,13 +19,11 @@ class SierraAPIResponse:
             response_model_name: str,
             data: BaseModel, 
             raw_response: requests.Response,
-            # prepared_request: requests.PreparedRequest
         ):
 
         self.response_model_name = response_model_name
         self.data = data
         self.raw_response = raw_response
-        # self.prepared_request = prepared_request
         self.status_code = raw_response.status_code
 
     def __str__(self) -> str:
@@ -128,7 +126,14 @@ class SierraRESTAPI:
 
     @hybrid_retry_decorator()
     @authenticate
-    def get(self, template, *args, **kwargs):
+    def get(
+        self, 
+        template,
+        params={},
+        path_params={}
+        # *args, 
+        # **kwargs
+    ) -> SierraAPIResponse:
         """
         Sends a GET request to the specified endpoint.
 
@@ -153,11 +158,9 @@ class SierraRESTAPI:
         as per the Sierra REST design.
         """
 
-        # extract the params from the kwarg
-        params = kwargs.pop('params', {})
-
-        # Extract path parameters from kwargs
-        path_params = kwargs.pop('path_params', {})
+        # Set the default limit to 2000 if not specified in params
+        if 'limit' not in params:
+            params['limit'] = 2000
         
         # use the extracted path parameters to format the template 
         # e.g. 'items/{id}' -> 'items/{123}'
@@ -180,7 +183,7 @@ class SierraRESTAPI:
         response = self.session.get(
             endpoint_url, 
             params=params, 
-            **kwargs
+            # **kwargs
         )
         
         self.request_count += 1
@@ -226,7 +229,7 @@ class SierraRESTAPI:
         template, 
         params=None, 
         json_body=None
-    ):
+    ) -> SierraAPIResponse:
         """
         Sends a POST request to the specified endpoint.
 
