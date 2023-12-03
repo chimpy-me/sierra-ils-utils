@@ -19,13 +19,13 @@ class SierraAPIResponse:
             response_model_name: str,
             data: BaseModel, 
             raw_response: requests.Response,
-            prepared_request: requests.PreparedRequest
+            # prepared_request: requests.PreparedRequest
         ):
 
         self.response_model_name = response_model_name
         self.data = data
         self.raw_response = raw_response
-        self.prepared_request = prepared_request
+        # self.prepared_request = prepared_request
         self.status_code = raw_response.status_code
 
     def __str__(self) -> str:
@@ -212,12 +212,21 @@ class SierraRESTAPI:
             self.logger.error(f"Error: {e}")
             parsed_data = None
 
-        return SierraAPIResponse(model_name, parsed_data, response)
+        return SierraAPIResponse(
+            model_name, 
+            parsed_data, 
+            response
+        )
     
     @hybrid_retry_decorator()
     @authenticate
     # def post(self, template, json_body, *args, **kwargs):
-    def post(self, template, params=None, json_body=None):
+    def post(
+        self, 
+        template, 
+        params=None, 
+        json_body=None
+    ):
         """
         Sends a POST request to the specified endpoint.
 
@@ -287,16 +296,16 @@ class SierraRESTAPI:
 
         # send the prepared request (POST)
         response = self.session.send(prepared_request)
-
-        # Send the POST request
-        # response = self.session.post(
-        #     url=endpoint_url,  # 
-        #     params=params,     #
-        #     json=json_body     #
-        # )
-
         self.request_count += 1
-        self.logger.debug(f'request count: {self.request_count}')
+
+        debug_text = (
+            f'"response.status_code": {response.status_code}, ' +
+            f'"prepared_request.url": {prepared_request.url}, ' +
+            f'"prepared_request.params": {json.dumps(params)}, ' +  # Convert params to a JSON string
+            f'"prepared_request.body": {prepared_request.body.decode("utf-8")}, ' +
+            f'"request_count": {self.request_count}'
+        )
+        self.logger.debug(debug_text)     
 
         # Check for non-200 responses
         if response.status_code != 200:
@@ -324,7 +333,12 @@ class SierraRESTAPI:
             self.logger.error(f"Error: {e}")
             parsed_data = None
 
-        return SierraAPIResponse(model_name, parsed_data, response, prepared_request)
+        return SierraAPIResponse(
+            model_name, 
+            parsed_data,
+            # prepared_request, 
+            response,
+        )
 
 
 class JsonManipulator:
