@@ -1,10 +1,10 @@
 from .decorators import hybrid_retry_decorator, authenticate
 import json
-from .sierra_api_v6_endpoints import endpoints
+from .sierra_api_v6_endpoints import endpoints, Version
 import logging
 from pydantic import BaseModel
 import requests
-from typing import Literal
+from typing import Literal, Dict
 from time import sleep, time
 
 # Set up the logger at the module level
@@ -12,17 +12,20 @@ logger = logging.getLogger(__name__)
 
 class SierraAPIResponse:
     """
-    SierraAPIResponse is the default return type for SierraRESTAPI
+    SierraAPIResponse is the default return type for SierraRESTAPI / SierraAPI
     """
     def __init__(
             self,
             response_model_name: str,
             data: BaseModel, 
-            raw_response: requests.Response
+            raw_response: requests.Response,
+            # prepared_request: requests.PreparedRequest
         ):
+
         self.response_model_name = response_model_name
         self.data = data
         self.raw_response = raw_response
+        # self.prepared_request = prepared_request
         self.status_code = raw_response.status_code
 
     def __str__(self) -> str:
@@ -30,15 +33,16 @@ class SierraAPIResponse:
         implements the string method for the response
         """
         
-        data_str  = f"\"status code\":         \"{self.status_code}\"\n"
-        data_str += f"\"response model data\": "
+        data_str  = f"\"status_code\"          : \"{self.status_code}\"\n"
+        data_str += f"\"response_model_name\"  : \"{self.response_model_name}\"\n"
+        data_str += f"\"response_model_data\"  : \""
         data_str += self.data.json(indent=4) if self.data else "{}"
         
         return data_str
     
     def __repr__(self):
         """
-        this is so the notebook automatically displays the string representation of the last expression
+        this is so a notebook automatically displays the string representation of the last expression
         """
         return self.__str__()
 
@@ -64,6 +68,8 @@ class SierraRESTAPI:
             log_level=logging.WARNING,  # default the logger to only display warnings
         ):
 
+        # TODO make it easier to switch versions of the endpoints?
+
         self.logger = logger
         self.logger.setLevel(log_level)
         
@@ -79,6 +85,11 @@ class SierraRESTAPI:
         # finally init the session
         self._initialize_session()
 
+        # Log the init
+        # self.logger.debug(f"INIT base_url: {self.base_url} endpoints version : {Version}")
+        # self.logger.debug(f"INIT session.headers: {self.session.headers} self. : {Version}")
+        self.logger.debug(f"INIT {self.info()}")
+
     def _initialize_session(self):
         self.request_count = 0
         # (expires_at is an integer "timestamp" --seconds since UNIX Epoch
@@ -91,6 +102,28 @@ class SierraRESTAPI:
         self.session.headers = {
             'accept': 'application/json',
             'Authorization': '',
+        }
+    
+    def info(self) -> Dict:
+        """
+        returns a dict of the current status of the class
+        """
+
+        try:
+            # mask all but 8 chars
+            masked_key = self.api_key[:8] + '*' * (len(self.api_key) - 8)
+        except Exception as e:
+            self.logger.warning(f"Error creating masked_key: {e}")
+            masked_key = ""
+
+        return {
+            "base_url":         self.base_url,
+            # "api_key":          self.api_key,
+            "api_key":          masked_key,
+            "request_count":    self.request_count,
+            "expires_at":       self.expires_at,
+            "session_headers":  self.session.headers,
+            "endpoints":        self.endpoints,
         }
 
     @hybrid_retry_decorator()
@@ -179,11 +212,21 @@ class SierraRESTAPI:
             self.logger.error(f"Error: {e}")
             parsed_data = None
 
-        return SierraAPIResponse(model_name, parsed_data, response)
+        return SierraAPIResponse(
+            model_name, 
+            parsed_data, 
+            response
+        )
     
     @hybrid_retry_decorator()
     @authenticate
-    def post(self, template, json_body, *args, **kwargs):
+    # def post(self, template, json_body, *args, **kwargs):
+    def post(
+        self, 
+        template, 
+        params=None, 
+        json_body=None
+    ):
         """
         Sends a POST request to the specified endpoint.
 
@@ -206,7 +249,7 @@ class SierraRESTAPI:
         """
 
         # extract the params from the kwarg
-        params = kwargs.pop('params', {})
+        params = params if params else {}
 
         # we shouldn't need to format a path parameter for post endpoints ... i don't think
         # # Extract path parameters from kwargs
@@ -224,12 +267,13 @@ class SierraRESTAPI:
 
         # check if the json_body is a dict or a string ... else raise a value error
         if isinstance(json_body, dict):
-            kwargs['json'] = json_body
+            # kwargs['json'] = json_body
+            json_body = json_body if json_body else {}
         
         elif isinstance(json_body, str):
             # convert the json_body to a dict
             try:
-                kwargs['json'] = json.loads(json_body)
+                json_body = json.loads(json_body)
             except:
                 e = ValueError('json_body: must be valid json')
                 raise e
@@ -238,17 +282,30 @@ class SierraRESTAPI:
             raise ValueError('json_body: must be of type `str` or `dict`')
         
         # Log the request being made
-        self.logger.debug(f'POST {{"endpoint": "{endpoint_url}", "params": "{params}"}}')
-
-        # Send the POST request
-        response = self.session.post(
-            endpoint_url,   # 
-            params=params,  #
-            **kwargs        # includes the json=json_body
+        self.logger.debug(f'POST {{"endpoint": "{endpoint_url}", "params": "{params}", "json_body": "{json_body}"}}')
+        
+        # create a request object and then prepare it
+        request = requests.Request(
+            method='POST', 
+            url=endpoint_url,
+            params=params,
+            json=json_body
         )
+        # prepare the request with the session
+        prepared_request = self.session.prepare_request(request)
 
+        # send the prepared request (POST)
+        response = self.session.send(prepared_request)
         self.request_count += 1
-        self.logger.debug(f'request count: {self.request_count}')
+
+        debug_text = (
+            f'"response.status_code": {response.status_code}, ' +
+            f'"prepared_request.url": {prepared_request.url}, ' +
+            f'"prepared_request.params": {json.dumps(params)}, ' +  # Convert params to a JSON string
+            f'"prepared_request.body": {prepared_request.body.decode("utf-8")}, ' +
+            f'"request_count": {self.request_count}'
+        )
+        self.logger.debug(debug_text)     
 
         # Check for non-200 responses
         if response.status_code != 200:
@@ -276,7 +333,12 @@ class SierraRESTAPI:
             self.logger.error(f"Error: {e}")
             parsed_data = None
 
-        return SierraAPIResponse(model_name, parsed_data, response)
+        return SierraAPIResponse(
+            model_name, 
+            parsed_data,
+            # prepared_request, 
+            response,
+        )
 
 
 class JsonManipulator:
@@ -333,64 +395,82 @@ class JsonManipulator:
         return self._json_obj
 
 
-# Define the Pydantic models for the SierraQueryBuilder
-
-class Target(BaseModel):
-    record_type: Literal['bib', 'item']   # TODO more / others
-    field_tag: str                        # TODO Literals? Fixed Fields?
-
-
-class Expression(BaseModel):
-    operation: Literal['has', 'equals']   # TODO more / others
-    operands: list
-
-
-class LogicalOperator(BaseModel):
-    operator: Literal['and', 'or', 'not']  # TODO is this it?
-
-
-class Query(BaseModel):
-    target: Target
-    expression: Expression
-
-
 class SierraQueryBuilder:
-    """
-    Builds queries for Create Lists and SierraRESTAPI endpoints 
-    """
     def __init__(self):
-        self.query = {
-            "queries": []
+        self.queries = []
+        self.current_query = None
+
+    def start_query(self, record_type, field_tag):
+        if self.current_query is not None:
+            raise ValueError("Previous query not ended. Use end_query to finish.")
+        self.current_query = {
+            "target": {
+                "record": {"type": record_type},
+                "field": {"tag": field_tag}
+            },
+            "expr": []
         }
+        return self
 
-    def add_simple_query(
-        self,
-        query: Query  # Target, and Expression 
-    ):
-        self.query["queries"].append(query)
+    def add_expression(self, op, operands):
+        if self.current_query is None:
+            raise ValueError("No active query. Use start_query to begin.")
+        if not isinstance(operands, list):
+            operands = [operands]
+        self.current_query["expr"].append(
+            {
+                "op": op, 
+                "operands": operands
+            }
+        )
+        return self
 
-    def add_logical_operator(
-        self,
-        logical_operator:LogicalOperator
-    ):
-        # ensure that the previous element of queries is a Query
-        if self.query["queries"] and isinstance(self.query["queries"][-1], Query):
-            self.queries.append(logical_operator)
-        else:
-            raise ValueError("Cannot add a LogicalOperator before adding a Query or after another LogicalOperator.")
-        
-    def build_query(self):
+    # def end_query(self):
+    #     if self.current_query is None:
+    #         raise ValueError("No active query to end.")
+    #     if len(self.current_query["expr"]) == 1:
+    #         self.current_query["expr"] = self.current_query["expr"][0]
+    #     self.queries.append(self.current_query)
+    #     self.current_query = None
+    #     return self
+
+    def end_query(self):
+        if self.current_query is None:
+            raise ValueError("No active query to end.")
+        if not self.current_query["expr"]:
+            raise ValueError("No expression added to the query.")
         """
-        Validate and build the final query.
-        :return: String representation of the JSON query.
+        TODO:
+
+        I don't know if there's a mistake in the manual, or if this works
+        differently for different situations, but it seems like the docs
+        present the `expr` portion of the query as simply being an object
+        and in the case of compiling barcodes, it's an array.
+
+        Here's a bit of code that could make it produce just a single
+        object when there's only one, but I don't know if it's intended
+        to "piece multiple expressions together" or what.
+
+        if len(self.current_query["expr"]) == 1:
+            self.current_query["expr"] = self.current_query["expr"][0]
         """
-            
-        return self.query
+        self.queries.append(self.current_query)
+        self.current_query = None
+        return self
+
+    def build(self):
+        if self.current_query is not None:
+            raise ValueError("Query not ended. Use end_query to finish.")
+        if len(self.queries) == 1:
+            return self.queries[0]
+        return {"queries": self.queries}
+
+    def json(self):
+        return json.dumps(self.build(), indent=2)
 
     def __str__(self):
-        """
-        Returns the string representation of the JSON query.
-        :return: String representation of the JSON query.
-        """
-        return json.dumps(self.build_query(), indent=2)
+        return self.json()
+
+    def __repr__(self):
+        return self.__str__()
 
