@@ -1,3 +1,4 @@
+import json
 import logging
 from random import uniform
 from time import sleep, time
@@ -60,7 +61,7 @@ def hybrid_retry_decorator(
                         raise requests.HTTPError(f"HTTP {response.status_code} Error")
                     return response
                 except retry_on_exceptions as e:
-                    self.logger.info(
+                    self.logger.warning(
                         f"Retry attempt {retries + 1} after failure: {str(e)}. Waiting {wait_time} seconds before retrying."
                     )
                     if retries == max_retries - 1:
@@ -113,14 +114,15 @@ def authenticate(func):
                     'Bearer ' + response.json().get('access_token')
                 
                 # set the variable for when this expires at
-                self.logger.info(f"Authorization Success. response.json.get('expires_in'): {response.json().get('expires_in')}")
+                self.logger.debug(f"Authorization Success. response.json.get('expires_in'): {response.json().get('expires_in')}")
                 self.expires_at = time() + int(response.json().get('expires_in')) - 60  # pad our expiration time by -60 seconds to be safe
             else:
                 # If the request failed, raise an exception
-                raise Exception(f"Failed to obtain access token: {response.text}\n")
+                self.logger.warning(f"Failed to obtain access token: {response.text}")
+                raise Exception(f"Failed to obtain access token: {response.text}")
 
 
-            self.logger.info(f"Sierra session authenticated")
+            self.logger.debug(f"Sierra session authenticated")
             
             # get some info about our token: e.g. /v6/info/token
             response = self.session.get(
@@ -140,12 +142,23 @@ def authenticate(func):
             except ValueError:
                 url = ''
 
-            self.logger.info(f"Sierra response status code                  : {status_code}")
-            self.logger.info(f"Sierra 'expiresIn'                           : {expires_in}")
-            self.logger.info(f"session expires at (UNIX Epoch)              : {self.expires_at}")
-            self.logger.info(f"seconds left                                 : {self.expires_at - time()}")
-            self.logger.info(f"request url                                  : {url}")
+            # self.logger.debug(f"Sierra response status code                  : {status_code}")
+            # self.logger.debug(f"Sierra 'expiresIn'                           : {expires_in}")
+            # self.logger.debug(f"session expires at (UNIX Epoch)              : {self.expires_at}")
+            # self.logger.debug(f"seconds left                                 : {self.expires_at - time()}")
+            # self.logger.debug(f"request url                                  : {url}")
             # self.logger.info(f"resonse json                                 : {response.json()}\n")
+
+            logger_info = {
+                "status_code": status_code,
+                "expires_in": expires_in,
+                "expires_at": self.expires_at,
+                "seconds_remaining": self.expires_at - time(),
+                "url": str(url),
+                "response_json": response.json()
+            }
+
+            self.logger.debug(f"Sierra API call details: {json.dumps(logger_info)}")
 
         return func(self, *args, **kwargs)   
     return wrapper
