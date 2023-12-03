@@ -110,7 +110,7 @@ class SierraRESTAPI:
         """
 
         try:
-            # mask all but 8 chars
+            # mask all but 8 chars of the key
             masked_key = self.api_key[:8] + '*' * (len(self.api_key) - 8)
         except Exception as e:
             self.logger.warning(f"Error creating masked_key: {e}")
@@ -305,7 +305,7 @@ class SierraRESTAPI:
             f'"prepared_request.body": {prepared_request.body.decode("utf-8")}, ' +
             f'"request_count": {self.request_count}'
         )
-        self.logger.debug(debug_text)     
+        self.logger.debug(debug_text)
 
         # Check for non-200 responses
         if response.status_code != 200:
