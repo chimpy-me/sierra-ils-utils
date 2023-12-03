@@ -369,7 +369,7 @@ class VolumeResultSet(BaseModel):
 class QueryEntry(BaseModel):
     link: str  # a link to the resulting record
 
-    def get_id(self) -> Optional[int]:
+    def get_id(self) -> Optional[str]:
         """
         Extracts the record type and ID from the link.
 
@@ -383,8 +383,8 @@ class QueryEntry(BaseModel):
         try:
             record_id = self.link.split('/')[-1]  # id is at the end of the uri path
 
-            # Validate that record_id can be converted to an integer
-            record_id = int(record_id)  # This will raise ValueError if record_id is not a valid integer string
+            # # Validate that record_id can be converted to an integer
+            # record_id = int(record_id)  # This will raise ValueError if record_id is not a valid integer string
 
         except Exception as e:
             logger.warn(f'Error: {e}')
@@ -431,7 +431,7 @@ class QueryResultSet(BaseModel):
     #             yield entry_id
 
     @property
-    def entry_ids(self) -> List[int]:
+    def entry_ids(self) -> List[str]:
         """
         Returns the IDs from all entries as a list.
 
