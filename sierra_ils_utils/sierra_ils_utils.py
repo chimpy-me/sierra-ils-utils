@@ -11,63 +11,6 @@ from time import sleep, time
 # Set up the logger at the module level
 logger = logging.getLogger(__name__)
 
-
-# class SierraAPIResponse(BaseModel):
-#     response_model_name: str
-#     data: Optional[Any]  # You might want to be more specific with the type here
-#     raw_response: requests.Response
-#     status_code: int
-
-#     """
-#     SierraAPIResponse is the default return type for SierraRESTAPI / SierraAPI
-#     """
-#     def __init__(
-#             self,
-#             response_model_name: str,
-#             data: BaseModel, 
-#             raw_response: requests.Response,
-#         ):
-
-#         self.data_model = response_model_name
-#         self.data = data
-#         self.raw_response = raw_response
-#         self.status_code = raw_response.status_code
-
-#     def __str__(self) -> str:
-#         """
-#         implements the string method for the response
-#         """
-
-#         return json.dumps(
-#             {
-#                 'raw_response': str(self.raw_response),  # should display the Request string representation 
-#                 'data_model': self.data_model,
-#                 'data': self.data.dict() if self.data else {}
-#             },
-#             indent=4
-#         )
-
-#     def pymarc_record_to_str(self, Record:Record) -> str:
-#         """
-#         represent a pymarc Record as a string
-#         """
-#         return 'pymarc record here!'
-
-#     def __repr__(self):
-#         """
-#         this is so a notebook automatically displays the string representation of the last expression
-#         """
-#         return self.__str__()
-    
-#     class Config:
-#         arbitrary_types_allowed = True  # so we can use pymarc for the bib "Record" object
-
-
-from pydantic import BaseModel
-import requests
-import json
-from typing import Optional, Any
-
 class SierraAPIResponse(BaseModel):
     """
     SierraAPIResponse is the default return type for SierraRESTAPI / SierraAPI
