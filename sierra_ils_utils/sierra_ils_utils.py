@@ -3,56 +3,51 @@ import json
 from .sierra_api_v6_endpoints import endpoints, Version
 import logging
 from pydantic import BaseModel
+from pymarc import Record
 import requests
-from typing import Literal, Dict, Union
+from typing import Literal, Dict, Union, Any, Optional
 from time import sleep, time
 
 # Set up the logger at the module level
 logger = logging.getLogger(__name__)
 
-class SierraAPIResponse:
+class SierraAPIResponse(BaseModel):
     """
     SierraAPIResponse is the default return type for SierraRESTAPI / SierraAPI
     """
-    def __init__(
-            self,
-            response_model_name: str,
-            data: BaseModel, 
-            raw_response: requests.Response,
-        ):
+    response_model_name: str
+    data: Optional[Any]  # Adjust this type hint as needed
+    raw_response: requests.Response
 
-        self.data_model = response_model_name
-        self.data = data
-        self.raw_response = raw_response
-        self.status_code = raw_response.status_code
+    class Config:
+        arbitrary_types_allowed = True
 
     def __str__(self) -> str:
         """
-        implements the string method for the response
+        Implements the string method for the response.
         """
-
         return json.dumps(
             {
-                # 'status_code': self.status_code,
-                'raw_response': str(self.raw_response),
-                'data_model': self.data_model,
+                'raw_response': str(self.raw_response),  # should display the Request string representation 
+                'response_model_name': self.response_model_name,
                 'data': self.data.dict() if self.data else {}
             },
             indent=4
         )
 
-        # data_str  = f"\"status_code\"          : \"{self.status_code}\"\n"
-        # data_str += f"\"response_model_name\"  : \"{self.response_model_name}\"\n"
-        # data_str += f"\"response_model_data\"  : \""
-        # data_str += self.data.json(indent=4) if self.data else "{}"
-        
-        # return data_str
-    
+    # def pymarc_record_to_str(self, record: Record) -> str:
+    #     """
+    #     Represent a pymarc Record as a string.
+    #     """
+    #     return 'pymarc record here!'
+
     def __repr__(self):
         """
-        this is so a notebook automatically displays the string representation of the last expression
+        This is so a notebook automatically displays the string representation of the last expression.
         """
         return self.__str__()
+
+
 
 class SierraRESTAPI:
     """
@@ -231,10 +226,15 @@ class SierraRESTAPI:
             self.logger.error(f"Error: {e}")
             parsed_data = None
 
+        # return SierraAPIResponse(
+        #     model_name, 
+        #     parsed_data, 
+        #     response
+        # )
         return SierraAPIResponse(
-            model_name, 
-            parsed_data, 
-            response
+            response_model_name=model_name,
+            data=parsed_data,
+            raw_response=response
         )
     
     @hybrid_retry_decorator()
@@ -360,10 +360,9 @@ class SierraRESTAPI:
             parsed_data = None
 
         return SierraAPIResponse(
-            model_name, 
-            parsed_data,
-            # prepared_request, 
-            response,
+            response_model_name=model_name,
+            data=parsed_data,
+            raw_response=response
         )
 
 

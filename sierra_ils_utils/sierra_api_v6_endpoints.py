@@ -11,6 +11,14 @@ from decimal import Decimal
 # Set up the logger at the module level
 logger = logging.getLogger(__name__)
 
+# TODO: do we still need to do this?
+# monkey patch!
+def pymarc_record_dict(self):
+    return self.as_dict()
+
+# apply the monkey patch
+Record.dict = pymarc_record_dict
+
 
 class Language(BaseModel):
     code: str
@@ -120,6 +128,16 @@ class Bib(BaseModel):
 
             return record
         return v
+    
+    def dict(self, **kwargs) -> Dict[str, Any]:
+        # Serialize the Bib model to a dictionary
+        d = super().dict(**kwargs)
+
+        # Check if the marc field is a Record and convert it to string
+        if isinstance(self.marc, Record):
+            d['marc'] = self.marc.as_dict()  # or use any other method for string conversion
+
+        return d
     
     class Config:
         arbitrary_types_allowed = True  # so we can use pymarc for the bib "Record" object
