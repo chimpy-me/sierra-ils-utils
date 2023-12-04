@@ -1,5 +1,4 @@
-
-from .sierra_ils_utils import SierraRESTAPI, JsonManipulator, SierraQueryBuilder
+from .sierra_ils_utils import SierraRESTAPI, JsonManipulator, SierraQueryBuilder, SierraAPIResponse
 from .sierra_api_v6_endpoints import endpoints
 # from .sierra_api_v6_endpoints import Bib, BibResultSet, Item, ItemResultSet, RecordDateRange, Patron, PatronResultSet
 from .sierra_api_v6_endpoints import *
@@ -17,8 +16,7 @@ logger.debug(f'INIT')
 SierraAPI = SierraRESTAPI
 QueryBuilder = SierraQueryBuilder
 
-# create a namespace for our models
-
+# create a namespace for our various models
 class Models:
     pass
 
@@ -28,6 +26,8 @@ for name, obj in inspect.getmembers(sys.modules[module_name]):
     if inspect.isclass(obj) and issubclass(obj, BaseModel) and obj is not BaseModel:
         setattr(Models, name, obj)
 
+# add any remaining models
+setattr(Models, 'SierraAPIResponse', SierraAPIResponse)
 
 # Usage Example:
 # bib_model = Models.Bib(...)

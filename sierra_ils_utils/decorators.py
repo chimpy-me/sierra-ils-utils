@@ -56,8 +56,8 @@ def hybrid_retry_decorator(
             wait_time = initial_wait_time
             while retries <= max_retries:
                 try:
-                    response = func(self, *args, **kwargs)
-                    if response.status_code in retry_on_status_codes:
+                    response = func(self, *args, **kwargs)  # this is going to be the SierraAPIResponse
+                    if response and response.raw_response and response.raw_response.status_code in retry_on_status_codes:
                         raise requests.HTTPError(f"HTTP {response.status_code} Error")
                     return response
                 except retry_on_exceptions as e:
@@ -147,7 +147,7 @@ def authenticate(func):
             # self.logger.debug(f"session expires at (UNIX Epoch)              : {self.expires_at}")
             # self.logger.debug(f"seconds left                                 : {self.expires_at - time()}")
             # self.logger.debug(f"request url                                  : {url}")
-            # self.logger.info(f"resonse json                                 : {response.json()}\n")
+            # self.logger.info(f"response json                                 : {response.json()}\n")
 
             logger_info = {
                 "status_code": status_code,
