@@ -11,7 +11,4 @@ def test_validate_PatronResultSet():
         data = json.load(f)
 
     patrons = Models.PatronResultSet.validate(data)
-    
-    # patrons.validate(data)  # should validate the test json
-
     assert patrons is not None

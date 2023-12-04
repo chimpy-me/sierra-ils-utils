@@ -21,7 +21,7 @@ class SierraAPIResponse:
             raw_response: requests.Response,
         ):
 
-        self.response_model_name = response_model_name
+        self.data_model = response_model_name
         self.data = data
         self.raw_response = raw_response
         self.status_code = raw_response.status_code
@@ -30,13 +30,23 @@ class SierraAPIResponse:
         """
         implements the string method for the response
         """
+
+        return json.dumps(
+            {
+                # 'status_code': self.status_code,
+                'raw_response': str(self.raw_response),
+                'data_model': self.data_model,
+                'data': self.data.dict() if self.data else {}
+            },
+            indent=4
+        )
+
+        # data_str  = f"\"status_code\"          : \"{self.status_code}\"\n"
+        # data_str += f"\"response_model_name\"  : \"{self.response_model_name}\"\n"
+        # data_str += f"\"response_model_data\"  : \""
+        # data_str += self.data.json(indent=4) if self.data else "{}"
         
-        data_str  = f"\"status_code\"          : \"{self.status_code}\"\n"
-        data_str += f"\"response_model_name\"  : \"{self.response_model_name}\"\n"
-        data_str += f"\"response_model_data\"  : \""
-        data_str += self.data.json(indent=4) if self.data else "{}"
-        
-        return data_str
+        # return data_str
     
     def __repr__(self):
         """
