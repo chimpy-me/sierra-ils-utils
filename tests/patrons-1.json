@@ -1,0 +1,559 @@
+{
+  "total": 5,
+  "start": 200000,
+  "entries": [
+    {
+      "id": 1200001,
+      "deletedDate": "2022-12-29",
+      "deleted": true,
+      "barcodes": [],
+      "autoBlockInfo": {
+        "code": "-"
+      },
+      "fixedFields": {},
+      "varFields": []
+    },
+    {
+      "id": 1200002,
+      "deletedDate": "2022-12-21",
+      "deleted": true,
+      "barcodes": [],
+      "autoBlockInfo": {
+        "code": "-"
+      },
+      "fixedFields": {},
+      "varFields": []
+    },
+    {
+      "id": 1200003,
+      "updatedDate": "2021-12-02T01:04:50Z",
+      "createdDate": "2012-07-19T03:33:47Z",
+      "deleted": false,
+      "suppressed": false,
+      "names": [
+        "Lastname, Firstname M"
+      ],
+      "barcodes": [
+        "12345678"
+      ],
+      "expirationDate": "2024-09-25",
+      "birthDate": "1966-01-01",
+      "emails": [
+        "name@email.com"
+      ],
+      "patronType": 0,
+      "patronCodes": {
+        "pcode1": "y",
+        "pcode2": "n",
+        "pcode3": 1,
+        "pcode4": 0
+      },
+      "homeLibraryCode": "ha",
+      "homeLibrary": {
+        "code": "ha",
+        "name": "Harrison"
+      },
+      "message": {
+        "code": "-"
+      },
+      "blockInfo": {
+        "code": "c"
+      },
+      "autoBlockInfo": {
+        "code": "blockedByFines"
+      },
+      "addresses": [
+        {
+          "lines": [
+            "123 N Street St",
+            "Cincinnati, OH 45240"
+          ],
+          "type": "a"
+        }
+      ],
+      "phones": [
+        {
+          "number": "5135555555",
+          "type": "t"
+        }
+      ],
+      "moneyOwed": 10,
+      "pMessage": "-",
+      "fixedFields": {
+        "43": {
+          "label": "Expiration Date",
+          "value": "2024-09-25T08:00:00Z"
+        },
+        "44": {
+          "label": "E-Lib Update? (P1)",
+          "value": "y"
+        },
+        "45": {
+          "label": "Friends? (P2)",
+          "value": "n"
+        },
+        "46": {
+          "label": "Foundation? (P3)",
+          "value": "1"
+        },
+        "47": {
+          "label": "Patron Type",
+          "value": "0"
+        },
+        "48": {
+          "label": "Total Checkouts",
+          "value": "5"
+        },
+        "49": {
+          "label": "Total Renewals",
+          "value": "7"
+        },
+        "50": {
+          "label": "Current Checkouts",
+          "value": "0"
+        },
+        "51": {
+          "label": "Birth Date",
+          "value": "1966-01-01"
+        },
+        "53": {
+          "label": "Home Library",
+          "value": "ha   ",
+          "display": "Harrison"
+        },
+        "54": {
+          "label": "Patron Message",
+          "value": "-"
+        },
+        "55": {
+          "label": "Highest Overdues",
+          "value": "4"
+        },
+        "56": {
+          "label": "Manual Block",
+          "value": "c"
+        },
+        "80": {
+          "label": "Record Type",
+          "value": "p"
+        },
+        "81": {
+          "label": "Record Number",
+          "value": "1200003"
+        },
+        "83": {
+          "label": "Created Date",
+          "value": "2012-07-19T03:33:47Z"
+        },
+        "84": {
+          "label": "Updated Date",
+          "value": "2021-12-02T01:04:50Z"
+        },
+        "85": {
+          "label": "No. of Revisions",
+          "value": "250"
+        },
+        "86": {
+          "label": "Agency",
+          "value": "1",
+          "display": "Main Library"
+        },
+        "95": {
+          "label": "Claims Returned",
+          "value": "0"
+        },
+        "96": {
+          "label": "Money Owed",
+          "value": "1000.000000"
+        },
+        "98": {
+          "label": "PDATE",
+          "value": "2021-12-02T01:04:49Z"
+        },
+        "99": {
+          "label": "FIRM",
+          "value": "     "
+        },
+        "102": {
+          "label": "New Rel DVDs (A)",
+          "value": "0"
+        },
+        "103": {
+          "label": "Mobile Hotspot (B)",
+          "value": "0"
+        },
+        "104": {
+          "label": "PIUSE",
+          "value": "0"
+        },
+        "105": {
+          "label": "Overdue Penalty",
+          "value": "0"
+        },
+        "122": {
+          "label": "ILL Request",
+          "value": "0"
+        },
+        "123": {
+          "label": "Debit Balance",
+          "value": "0.000000"
+        },
+        "124": {
+          "label": "Blurays (C)",
+          "value": "0"
+        },
+        "125": {
+          "label": "Lucky Day Coll (D)",
+          "value": "0"
+        },
+        "126": {
+          "label": "County (P4)",
+          "value": "0"
+        },
+        "158": {
+          "label": "Patron Agency",
+          "value": "18"
+        },
+        "163": {
+          "label": "Last Circ Activity",
+          "value": "2019-09-25T11:58:37Z"
+        },
+        "263": {
+          "label": "Preferred Language",
+          "value": "   "
+        },
+        "268": {
+          "label": "Notice Preference",
+          "value": "z"
+        },
+        "269": {
+          "label": "Registrations on Record",
+          "value": "0"
+        },
+        "270": {
+          "label": "Total Registrations",
+          "value": "0"
+        },
+        "271": {
+          "label": "Total Programs Attended",
+          "value": "0"
+        },
+        "297": {
+          "label": "Waitlists on Record",
+          "value": "0"
+        }
+      },
+      "varFields": [
+        {
+          "fieldTag": "=",
+          "content": "xxxxxxxxxxxxx"
+        },
+        {
+          "fieldTag": "b",
+          "content": "12345678"
+        },
+        {
+          "fieldTag": "d",
+          "content": "01011966"
+        },
+        {
+          "fieldTag": "r",
+          "content": "20120710"
+        },
+        {
+          "fieldTag": "x",
+          "content": "12/6/19 Bill notice e-mail sent."
+        },
+        {
+          "fieldTag": "z",
+          "content": "name@email.com"
+        },
+        {
+          "fieldTag": "a",
+          "content": "224 N State St$Harrison, OH 45030"
+        },
+        {
+          "fieldTag": "n",
+          "content": "Brownfield, Lisa M"
+        },
+        {
+          "fieldTag": "t",
+          "content": "5133286934"
+        }
+      ]
+    },
+    {
+      "id": 1200004,
+      "deletedDate": "2022-12-24",
+      "deleted": true,
+      "barcodes": [],
+      "autoBlockInfo": {
+        "code": "-"
+      },
+      "fixedFields": {},
+      "varFields": []
+    },
+    {
+      "id": 1200005,
+      "updatedDate": "2022-04-08T07:55:56Z",
+      "createdDate": "2012-07-19T03:33:47Z",
+      "deleted": false,
+      "suppressed": false,
+      "names": [
+        "Lastname1, Firstname1 M"
+      ],
+      "barcodes": [
+        "64082506"
+      ],
+      "expirationDate": "2027-04-07",
+      "birthDate": "1960-01-01",
+      "patronType": 0,
+      "patronCodes": {
+        "pcode1": "n",
+        "pcode2": "n",
+        "pcode3": 1,
+        "pcode4": 0
+      },
+      "homeLibraryCode": "nr",
+      "homeLibrary": {
+        "code": "nr",
+        "name": "North Central"
+      },
+      "message": {
+        "code": "-"
+      },
+      "blockInfo": {
+        "code": "-"
+      },
+      "autoBlockInfo": {
+        "code": "-"
+      },
+      "addresses": [
+        {
+          "lines": [
+            "123 S St Apt 5 ",
+            "Cincinnati, OH 45240"
+          ],
+          "type": "a"
+        }
+      ],
+      "phones": [
+        {
+          "number": "5135555555",
+          "type": "t"
+        }
+      ],
+      "uniqueIds": [
+        "1234567"
+      ],
+      "moneyOwed": 1.2,
+      "pMessage": "-",
+      "fixedFields": {
+        "43": {
+          "label": "Expiration Date",
+          "value": "2027-04-07T08:00:00Z"
+        },
+        "44": {
+          "label": "E-Lib Update? (P1)",
+          "value": "n"
+        },
+        "45": {
+          "label": "Friends? (P2)",
+          "value": "n"
+        },
+        "46": {
+          "label": "Foundation? (P3)",
+          "value": "1"
+        },
+        "47": {
+          "label": "Patron Type",
+          "value": "0"
+        },
+        "48": {
+          "label": "Total Checkouts",
+          "value": "227"
+        },
+        "49": {
+          "label": "Total Renewals",
+          "value": "0"
+        },
+        "50": {
+          "label": "Current Checkouts",
+          "value": "0"
+        },
+        "51": {
+          "label": "Birth Date",
+          "value": "1960-01-05"
+        },
+        "53": {
+          "label": "Home Library",
+          "value": "nr   ",
+          "display": "North Central"
+        },
+        "54": {
+          "label": "Patron Message",
+          "value": "-"
+        },
+        "55": {
+          "label": "Highest Overdues",
+          "value": "4"
+        },
+        "56": {
+          "label": "Manual Block",
+          "value": "-"
+        },
+        "80": {
+          "label": "Record Type",
+          "value": "p"
+        },
+        "81": {
+          "label": "Record Number",
+          "value": "1200005"
+        },
+        "83": {
+          "label": "Created Date",
+          "value": "2012-07-19T03:33:47Z"
+        },
+        "84": {
+          "label": "Updated Date",
+          "value": "2022-04-08T07:55:56Z"
+        },
+        "85": {
+          "label": "No. of Revisions",
+          "value": "137"
+        },
+        "86": {
+          "label": "Agency",
+          "value": "1",
+          "display": "Main Library"
+        },
+        "95": {
+          "label": "Claims Returned",
+          "value": "0"
+        },
+        "96": {
+          "label": "Money Owed",
+          "value": "120.000000"
+        },
+        "98": {
+          "label": "PDATE",
+          "value": "2022-04-07T22:11:35Z"
+        },
+        "99": {
+          "label": "FIRM",
+          "value": "     "
+        },
+        "102": {
+          "label": "New Rel DVDs (A)",
+          "value": "0"
+        },
+        "103": {
+          "label": "Mobile Hotspot (B)",
+          "value": "0"
+        },
+        "104": {
+          "label": "PIUSE",
+          "value": "0"
+        },
+        "105": {
+          "label": "Overdue Penalty",
+          "value": "0"
+        },
+        "122": {
+          "label": "ILL Request",
+          "value": "0"
+        },
+        "123": {
+          "label": "Debit Balance",
+          "value": "0.000000"
+        },
+        "124": {
+          "label": "Blurays (C)",
+          "value": "0"
+        },
+        "125": {
+          "label": "Lucky Day Coll (D)",
+          "value": "0"
+        },
+        "126": {
+          "label": "County (P4)",
+          "value": "0"
+        },
+        "158": {
+          "label": "Patron Agency",
+          "value": "28"
+        },
+        "163": {
+          "label": "Last Circ Activity",
+          "value": "2022-04-07T22:11:35Z"
+        },
+        "263": {
+          "label": "Preferred Language",
+          "value": "   "
+        },
+        "268": {
+          "label": "Notice Preference",
+          "value": "p"
+        },
+        "269": {
+          "label": "Registrations on Record",
+          "value": "0"
+        },
+        "270": {
+          "label": "Total Registrations",
+          "value": "0"
+        },
+        "271": {
+          "label": "Total Programs Attended",
+          "value": "0"
+        },
+        "297": {
+          "label": "Waitlists on Record",
+          "value": "0"
+        }
+      },
+      "varFields": [
+        {
+          "fieldTag": "=",
+          "content": "xxxxxxxxxxxxx"
+        },
+        {
+          "fieldTag": "b",
+          "content": "12345678"
+        },
+        {
+          "fieldTag": "d",
+          "content": "01011960"
+        },
+        {
+          "fieldTag": "r",
+          "content": "20060809"
+        },
+        {
+          "fieldTag": "u",
+          "content": "1234567"
+        },
+        {
+          "fieldTag": "x",
+          "content": "07/30/2013  Fines removed due to statute of limitations. BRW/NR"
+        },
+        {
+          "fieldTag": "x",
+          "content": "10/034/06 Forgave video fines of $20.00 Patron said she tried to call but her phone was not working. I explained that this was a one time offer. Eileen/WYO"
+        },
+        {
+          "fieldTag": "a",
+          "content": "123 S St Apt 5 $Cincinnati, OH 45240"
+        },
+        {
+          "fieldTag": "n",
+          "content": "Lastname1, Firstname1 M"
+        },
+        {
+          "fieldTag": "t",
+          "content": "5135555555"
+        }
+      ]
+    }
+  ]
+}

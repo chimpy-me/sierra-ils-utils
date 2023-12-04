@@ -58,7 +58,7 @@ class Country(BaseModel):
 
 class Location(BaseModel):
     code: str
-    name: str
+    name: Optional[str] = None
 
 
 class OrderInfo(BaseModel):
@@ -255,6 +255,7 @@ class VolumeResultSet(BaseModel):
 
 """
 
+Patron Related
 
 """
 
@@ -299,18 +300,18 @@ class Patron(BaseModel):
     emails: Optional[List[str]] = None  # the patron's email addresses
     patronType: Optional[int] = None  # the patron type code
     patronCodes: Optional[Codes] = None  # the library-defined pcodes associated with the patron
-    homeLibraryCode:  Optional[Location] = None  # the patron's home library code
-    message: Optional[Message] = None  # message-related data for the patron,
-    blockInfo: Optional[Block] = None  # patron block information,
-    autoBlockInfo: Optional[Block] = None  # (Block, optional): patron block information (automatic),
-    addresses: Optional[List[Address]] = None  # (array[Address], optional): the patron's addresses,
-    phones: Optional[Phone] = None  # (array[Phone], optional): the patron's telephone numbers,
-    uniqueIds: Optional[List[str]] = None  # (array[string], optional): the patron's unique IDs,
-    moneyOwed:  Optional[Decimal] = None  # (number, optional): the amount of money the patron owes in fines and charges,
-    pMessage: Optional[str] = None  # (string, optional): the patron's message,
-    langPref: Optional[str] = None  # (string, optional): the patron's language preference,
-    fixedFields: Optional[FixedField] = None  # the fixed-length fields from the patron record, 
-    # fixedFields (map[integer, FixedField]): 
+    homeLibraryCode: Optional[str] = None  # the patron's home library code
+    homeLibrary: Optional[Location] = None  # the patron's home library    
+    message: Optional[Message] = None  # message-related data for the patron
+    blockInfo: Optional[Block] = None  # patron block information
+    autoBlockInfo: Optional[Block] = None  # (Block, optional): patron block information (automatic)
+    addresses: Optional[List[Address]] = None  # (array[Address], optional): the patron's addresses
+    phones: Optional[List[Phone]] = None  # (array[Phone], optional): the patron's telephone numbers
+    uniqueIds: Optional[List[str]] = None  # (array[string], optional): the patron's unique IDs
+    moneyOwed:  Optional[Decimal] = None  # (number, optional): the amount of money the patron owes in fines and charges
+    pMessage: Optional[str] = None  # (string, optional): the patron's message
+    langPref: Optional[str] = None  # (string, optional): the patron's language preference
+    fixedFields: Optional[FixedField] = None  # the fixed-length fields from the patron record 
     varFields: Optional[List[VarField]] = None  # the variable-length fields from the patron record
 
 

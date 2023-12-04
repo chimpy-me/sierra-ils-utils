@@ -7,7 +7,7 @@ from unittest.mock import Mock, call, patch
 
 # Note: not testing the authenticate decorator here, since it's more integrated into the SierraAPIv6 module
 
-logger = logging.getLogger('__name__')
+logger = logging.getLogger(__name__)
 
 # Create a mock function that will always raise an exception
 mock_function = Mock(
@@ -18,6 +18,7 @@ def test_hybrid_retry_decorator():
     class DummyClass:
         def __init__(self):
             self.logger = logger
+            pass
 
         @hybrid_retry_decorator(max_retries=4, initial_wait_time=1)
         def failing_method(self):
@@ -31,6 +32,7 @@ def test_hybrid_retry_decorator_transient_failures():
     class DummyClass:
         def __init__(self):
             self.logger = logger
+            pass
 
         @hybrid_retry_decorator(max_retries=3, initial_wait_time=1)
         def transient_failure_method(self):
