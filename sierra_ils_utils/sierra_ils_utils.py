@@ -133,9 +133,9 @@ class SierraRESTAPI:
     @authenticate
     def get(
         self, 
-        template,
-        params=None,
-        path_params=None
+        template: str,
+        params:dict = None,
+        path_params:dict = None
         # *args, 
         # **kwargs
     ) -> SierraAPIResponse:
@@ -213,7 +213,13 @@ class SierraRESTAPI:
         self.logger.debug(f"GET {response.url} {response.status_code} ✅")
 
         # Parse the response using the appropriate Pydantic model
-        expected_model = self.endpoints["GET"][template]["response_model"]
+        # expected_model = self.endpoints["GET"][template]["response_model"]
+
+        try:
+            expected_model = self.endpoints["GET"][template]["responses"][response.status_code] 
+        except KeyError as e:
+            self.logger.error(f"Error: {e}")
+            # should halt the program
         
         # initialize the model name to None
         model_name = None

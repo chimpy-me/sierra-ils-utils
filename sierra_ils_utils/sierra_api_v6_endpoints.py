@@ -277,6 +277,36 @@ Patron Related
 
 """
 
+class HoldStatus(BaseModel):
+    code: str  # (string): the hold status code,
+    name: str  # (string): the description of the status
+
+
+class Hold(BaseModel):
+    id: str  # (string): the hold ID,
+    record: Optional[str] = None  # (string, optional): the bib, item, or volume record number associated with the hold (the endpoint returned for volume holds is not a valid API endpoint; it is returned for volume record ID information only),
+    patron: Optional[str] = None  # (string): the patron record number associated with the hold,
+    frozen: Optional[bool] = None  # (boolean, optional): whether the record is frozen,
+    placed: Optional[str] = None  # (string, optional): the date the hold was placed, in ISO 8601 format (yyyy-MM-dd),
+    notNeededAfterDate: Optional[str] = None  # (string, optional): the date the hold expires, in ISO 8601 format (yyyy-MM-dd),
+    notWantedBeforeDate: Optional[str] = None  # (string, optional): the date before which the system should not fill the hold, in ISO 8601 format (yyyy-MM-dd),
+    pickupByDate: Optional[str] = None  # (string, optional): the date by which the hold must be picked up (in ISO 8601 format (yyyy-MM-dd'T'HH:mm:ssZZ)),
+    location: Optional[Location] = None  # (Location, optional): the code of the location from which to fill the hold, if the hold is set for "Limit to Location" (does not apply to item-level holds),
+    pickupLocation: Optional[Location] = None  # (Location, optional): the location code of the hold's pickup location,
+    status: Optional[HoldStatus] = None  # (HoldStatus, optional): the hold status code and description,
+    recordType: Optional[str] = None  # (string, optional): a record type code, i.e., bib (b), item (i), or volume (j),
+    priority: Optional[int] = None  # (integer, optional): the priority (place in line) of the hold,
+    priorityQueueLength: Optional[int] = None  # (integer, optional): the length of the hold queue,
+    note: Optional[str] = None  # (string, optional): an informational note related to the hold,
+    canFreeze: Optional[bool] = None  # (boolean, optional): whether the record can be frozen
+
+
+class HoldResultSet(BaseModel):
+    total: Optional[int] = None  # (integer, optional): the total number of results,
+    start: Optional[int] = None  # (integer, optional): the starting position of this set,
+    entries: List[Hold]  # (array[Hold]): the hold entries
+
+
 class Codes(BaseModel):
     pcode1: Optional[str] = None  # (string, optional): a library-defined patron data field,
     pcode2: Optional[str] = None  # (string, optional): a library-defined patron data field,
@@ -622,6 +652,14 @@ endpoints = {
                 404: ErrorCode,
             },
             'response_model': CheckoutResultSet
+        },
+        "patrons/holds": {
+            "responses": {
+                200: HoldResultSet,
+                400: ErrorCode,
+                404: ErrorCode
+            }, 
+            # 'response_model': HoldResultSet
         },
         "volumes/": {
             "responses": {
