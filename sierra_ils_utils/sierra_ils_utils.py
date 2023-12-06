@@ -88,6 +88,8 @@ class SierraRESTAPI:
 
         self.logger = logger
         self.logger.setLevel(log_level)
+
+        self.session = None  # will contain the http client after init
         
         self.base_url = sierra_api_base_url
         self.api_key = sierra_api_key
@@ -111,9 +113,20 @@ class SierraRESTAPI:
         # (expires_at is an integer "timestamp" --seconds since UNIX Epoch
         self.expires_at = 0
         
-         # set up a requests session object
+        # set up a requests session object
         # self.session = requests.Session()
-        self.session = httpx.AsyncClient()
+
+        # For now, use the synchronous `httpx.Client()` 
+        # TODO: Maybe use the Async Client only for fetching multiple "pages"?
+        # ... self.session = httpx.AsyncClient() maybe?
+        
+        # Check if there is an existing session and it is an instance of httpx.Client
+        if self.session and isinstance(self.session, httpx.Client):
+            # Close the existing session to release resources
+            self.session.close()    
+        
+        # Initialize a new HTTPX client
+        self.session = httpx.Client()
 
         # set the default session headers
         self.session.headers = {
