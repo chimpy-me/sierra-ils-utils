@@ -2,7 +2,8 @@ import json
 import logging
 from random import uniform
 from time import sleep, time
-import requests
+# import requests
+import httpx
 import functools
 
 logger = logging.getLogger(__name__)
@@ -42,9 +43,11 @@ def hybrid_retry_decorator(
     Returns:
     - A decorated function that will retry upon failure using the hybrid back-off strategy.
     """
+    # if retry_on_exceptions is None:
+    #     # Default exceptions for requests that are generally considered transient
+    #     retry_on_exceptions = (requests.ConnectionError, requests.Timeout, requests.TooManyRedirects)
     if retry_on_exceptions is None:
-        # Default exceptions for requests that are generally considered transient
-        retry_on_exceptions = (requests.ConnectionError, requests.Timeout, requests.TooManyRedirects)
+        retry_on_exceptions = (httpx.ConnectError, httpx.RequestError, httpx.TimeoutException, httpx.TooManyRedirects)
     
     if retry_on_status_codes is None:
         # Default status codes to retry on (5XX server errors)
@@ -56,19 +59,35 @@ def hybrid_retry_decorator(
             wait_time = initial_wait_time
             while retries <= max_retries:
                 try:
-                    response = func(self, *args, **kwargs)  # this is going to be the SierraAPIResponse
-                    if response and response.raw_response and response.raw_response.status_code in retry_on_status_codes:
-                        raise requests.HTTPError(f"HTTP {response.status_code} Error")
-                    return response
+                    # sierra_api_response = func(self, *args, **kwargs)  # this is going to be the SierraAPIResponse
+                    
+                    sierra_api_response = func(self, *args, **kwargs)  # Expecting a SierraAPIResponse object
+                    httpx_response = sierra_api_response.raw_response  # Extracting the httpx.Response object
+
+
+                    if sierra_api_response and httpx_response and httpx_response.status_code in retry_on_status_codes:
+                        # raise requests.HTTPError(f"HTTP {response.status_code} Error")
+                        raise httpx.HTTPStatusError(
+                            f"HTTP {httpx_response.status_code} Error",
+                            request=httpx_response.request,
+                            response=httpx_response
+                        )
+                    
+                    return sierra_api_response  # if we were successful, send the actual response
+                
                 except retry_on_exceptions as e:
+                    # ... keep trying, until we run out of retries
+
                     self.logger.warning(
                         f"Retry attempt {retries + 1} after failure: {str(e)}. Waiting {wait_time} seconds before retrying."
                     )
                     if retries == max_retries - 1:
                         self.logger.error(f"Max retries reached. Function {func.__name__} failed with exception: {str(e)}")
                         raise e
+                    
                     sleep(wait_time)
                     retries += 1
+                    
                     if retries < initial_retries:
                         # Increase the wait time with random jitter
                         wait_time = initial_exponential_factor \
@@ -77,7 +96,9 @@ def hybrid_retry_decorator(
                         # Add fixed interval with random jitter
                         wait_time += fixed_interval \
                             * uniform(0.9, 1.1)
+    
         return wrapper
+    
     return decorator
 
 def authenticate(func):
@@ -95,19 +116,38 @@ def authenticate(func):
         ):
             # Set the request parameters (for authentication and
             # the grant type)
-            auth = requests.auth.HTTPBasicAuth(
-                username=self.api_key, 
-                password=self.api_secret
-            )
-            data = {
-                "grant_type": "client_credentials"
-            }
+            # auth = requests.auth.HTTPBasicAuth(
+            #     username=self.api_key, 
+            #     password=self.api_secret
+            # )
+            # data = {
+            #     "grant_type": "client_credentials"
+            # }
             
-            response = self.session.post(
-                url=self.token_url, 
-                auth=auth, 
-                data=data
-            )
+            # response = self.session.post(
+            #     url=self.token_url, 
+            #     auth=auth, 
+            #     data=data
+            # )
+            if self.api_key and self.api_secret:
+                auth = (self.api_key, self.api_secret)
+            else:
+                raise ValueError('No client key or secret found')
+            
+            data = {"grant_type": "client_credentials"}
+
+            masked_key = self.api_key[:8] + '*' * (len(self.api_key) - 8)
+            masked_secret = '*' * len(self.api_secret)
+            logger.debug(f'sending auth request ... masked_key: {masked_key}, masked_secret: {masked_secret}')
+            
+            with httpx.Client() as client:
+                response = client.post(
+                    url=self.token_url,
+                    auth=auth,
+                    data=data
+                )
+
+                logger.debug(f'... sent auth request response.status_code: {response.status_code}')
             
             if response.status_code == 200:
                 self.session.headers['Authorization'] = \
@@ -122,7 +162,7 @@ def authenticate(func):
                 raise Exception(f"Failed to obtain access token: {response.text}")
 
 
-            self.logger.debug(f"Sierra session authenticated")
+            self.logger.debug(f"session authenticated")
             
             # get some info about our token: e.g. /v6/info/token
             response = self.session.get(

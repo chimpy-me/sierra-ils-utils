@@ -1,12 +1,13 @@
+import asyncio
 from .decorators import hybrid_retry_decorator, authenticate
+import httpx
 import json
 from .sierra_api_v6_endpoints import endpoints, Version
 import logging
 from pydantic import BaseModel
 from pymarc import Record
-import requests
-from typing import Literal, Dict, Union, Any, Optional
 from time import sleep, time
+from typing import Literal, Dict, Union, Any, Optional
 
 # Set up the logger at the module level
 logger = logging.getLogger(__name__)
@@ -14,10 +15,16 @@ logger = logging.getLogger(__name__)
 class SierraAPIResponse(BaseModel):
     """
     SierraAPIResponse is the default return type for SierraRESTAPI / SierraAPI
+
+    response_model_name: str  # the name of the Sierra model that has been returned
+    data: Optional[Any]  # the model itself
+    raw_response: httpx.Response  # the raw response from the httpx request
     """
+
     response_model_name: str
     data: Optional[Any]  # Adjust this type hint as needed
-    raw_response: requests.Response
+    # raw_response: requests.Response
+    raw_response: httpx.Response
 
     class Config:
         arbitrary_types_allowed = True
@@ -26,27 +33,24 @@ class SierraAPIResponse(BaseModel):
         """
         Implements the string method for the response.
         """
+
+        # Check if self.data is a Pydantic model and convert to dict, else use as is
+        data_repr = self.data.dict() if hasattr(self.data, "dict") else self.data
+
         return json.dumps(
             {
                 'raw_response': str(self.raw_response),  # should display the Request string representation 
                 'response_model_name': self.response_model_name,
-                'data': self.data.dict() if self.data else {}
+                'data': data_repr
             },
             indent=4
         )
-
-    # def pymarc_record_to_str(self, record: Record) -> str:
-    #     """
-    #     Represent a pymarc Record as a string.
-    #     """
-    #     return 'pymarc record here!'
 
     def __repr__(self):
         """
         This is so a notebook automatically displays the string representation of the last expression.
         """
         return self.__str__()
-
 
 
 class SierraRESTAPI:
@@ -64,17 +68,25 @@ class SierraRESTAPI:
     """
     def __init__(
             self,
-            sierra_api_base_url,
-            sierra_api_key,
-            sierra_api_secret,
-            endpoints=endpoints,  # default to the latest set of endpoints. e.g. .sierra_api_v6_endpoints import endpoints
-            log_level=logging.WARNING,  # default the logger to only display warnings
+            sierra_api_base_url: str,
+            sierra_api_key: str,
+            sierra_api_secret: str,
+            endpoints: Dict = endpoints,       # default to the latest set of endpoints
+                                               #   ... e.g. .sierra_api_v6_endpoints import endpoints
+            log_level: int = logging.WARNING,  # default the logger to only display warnings
+            log_level_httpx: int = logging.WARNING  # default the httpx logger to warnings
         ):
 
         # TODO make it easier to switch versions of the endpoints?
 
+        # set this log level accordingly
         self.logger = logger
         self.logger.setLevel(log_level)
+
+        # set the log level of httpx accordingly
+        logging.getLogger('httpx').setLevel(log_level_httpx)
+
+        self.session = None  # will contain the http client after init
         
         self.base_url = sierra_api_base_url
         self.api_key = sierra_api_key
@@ -89,17 +101,24 @@ class SierraRESTAPI:
         self._initialize_session()
 
         # Log the init
-        # self.logger.debug(f"INIT base_url: {self.base_url} endpoints version : {Version}")
-        # self.logger.debug(f"INIT session.headers: {self.session.headers} self. : {Version}")
         self.logger.debug(f"INIT {self.info()}")
 
     def _initialize_session(self):
         self.request_count = 0
         # (expires_at is an integer "timestamp" --seconds since UNIX Epoch
         self.expires_at = 0
+
+        # For now, use the synchronous `httpx.Client()` 
+        # TODO: Maybe use the Async Client only for fetching multiple "pages"?
+        # ... self.session = httpx.AsyncClient() maybe?
         
-         # set up a requests session object
-        self.session = requests.Session()
+        # Check if there is an existing session and it is an instance of httpx.Client
+        if self.session and isinstance(self.session, httpx.Client):
+            # Close the existing session to release resources
+            self.session.close()    
+        
+        # Initialize a new HTTPX client
+        self.session = httpx.Client()
 
         # set the default session headers
         self.session.headers = {
@@ -134,10 +153,8 @@ class SierraRESTAPI:
     def get(
         self, 
         template: str,
-        params:dict = None,
-        path_params:dict = None
-        # *args, 
-        # **kwargs
+        params: Dict = None,
+        path_params: Dict = None
     ) -> SierraAPIResponse:
         """
         Sends a GET request to the specified endpoint.
@@ -193,8 +210,7 @@ class SierraRESTAPI:
         # Send the GET request
         response = self.session.get(
             endpoint_url, 
-            params=params, 
-            # **kwargs
+            params=params,
         )
         
         self.request_count += 1
@@ -213,8 +229,6 @@ class SierraRESTAPI:
         self.logger.debug(f"GET {response.url} {response.status_code} ✅")
 
         # Parse the response using the appropriate Pydantic model
-        # expected_model = self.endpoints["GET"][template]["response_model"]
-
         try:
             expected_model = self.endpoints["GET"][template]["responses"][response.status_code] 
         except KeyError as e:
@@ -232,11 +246,6 @@ class SierraRESTAPI:
             self.logger.error(f"Error: {e}")
             parsed_data = None
 
-        # return SierraAPIResponse(
-        #     model_name, 
-        #     parsed_data, 
-        #     response
-        # )
         return SierraAPIResponse(
             response_model_name=model_name,
             data=parsed_data,
@@ -248,9 +257,9 @@ class SierraRESTAPI:
     # def post(self, template, json_body, *args, **kwargs):
     def post(
         self, 
-        template, 
-        params=None, 
-        json_body=None
+        template: str, 
+        params: Optional[Dict] = None, 
+        json_body: Union[str, dict, None] = None
     ) -> SierraAPIResponse:
         """
         Sends a POST request to the specified endpoint.
@@ -316,28 +325,34 @@ class SierraRESTAPI:
         # Log the request being made
         self.logger.debug(f'POST {{"endpoint": "{endpoint_url}", "params": "{params}", "json_body": "{json_body}"}}')
         
-        # create a request object and then prepare it
-        request = requests.Request(
-            method='POST', 
+        # # create a request object and then prepare it
+        # request = requests.Request(
+        #     method='POST', 
+        #     url=endpoint_url,
+        #     params=params,
+        #     json=json_body
+        # )
+        # # prepare the request with the session
+        # prepared_request = self.session.prepare_request(request)
+
+        # # send the prepared request (POST)
+        # response = self.session.send(prepared_request)
+        # self.request_count += 1
+
+        # debug_text = (
+        #     f'"response.status_code": {response.status_code}, ' +
+        #     f'"prepared_request.url": {prepared_request.url}, ' +
+        #     f'"prepared_request.params": {json.dumps(params)}, ' +  # Convert params to a JSON string
+        #     f'"prepared_request.body": {prepared_request.body.decode("utf-8")}, ' +
+        #     f'"request_count": {self.request_count}'
+        # )
+        # self.logger.debug(debug_text)
+
+        response = self.session.post(
             url=endpoint_url,
             params=params,
             json=json_body
         )
-        # prepare the request with the session
-        prepared_request = self.session.prepare_request(request)
-
-        # send the prepared request (POST)
-        response = self.session.send(prepared_request)
-        self.request_count += 1
-
-        debug_text = (
-            f'"response.status_code": {response.status_code}, ' +
-            f'"prepared_request.url": {prepared_request.url}, ' +
-            f'"prepared_request.params": {json.dumps(params)}, ' +  # Convert params to a JSON string
-            f'"prepared_request.body": {prepared_request.body.decode("utf-8")}, ' +
-            f'"request_count": {self.request_count}'
-        )
-        self.logger.debug(debug_text)
 
         # Check for non-200 responses
         if response.status_code != 200:
