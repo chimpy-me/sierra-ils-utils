@@ -8,7 +8,8 @@ setup(
         "psycopg2-binary>=2.9.9,<3.0.0",
         "pydantic>=1.10.13,<2.0.0",
         "pymarc>=5.1.0,<6.0.0",
-        "requests>=2.31.0,<3.0.0",
+        # "requests>=2.31.0,<3.0.0",
+        "httpx>=0.25.2,<0.26.0"
     ],
     author="Ray Voelker",
     author_email="ray.voelker@gmail.com",
