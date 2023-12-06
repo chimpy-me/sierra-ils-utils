@@ -5,6 +5,9 @@ import logging
 from pydantic import BaseModel
 from pymarc import Record
 import requests
+import httpx
+import asyncio
+
 from typing import Literal, Dict, Union, Any, Optional
 from time import sleep, time
 
@@ -14,10 +17,16 @@ logger = logging.getLogger(__name__)
 class SierraAPIResponse(BaseModel):
     """
     SierraAPIResponse is the default return type for SierraRESTAPI / SierraAPI
+
+    response_model_name: str  # the name of the Sierra model that has been returned
+    data: Optional[Any]  # the model itself
+    raw_response: httpx.Response  # the raw response from the httpx request
     """
+
     response_model_name: str
     data: Optional[Any]  # Adjust this type hint as needed
-    raw_response: requests.Response
+    # raw_response: requests.Response
+    raw_response: httpx.Response
 
     class Config:
         arbitrary_types_allowed = True
@@ -26,11 +35,15 @@ class SierraAPIResponse(BaseModel):
         """
         Implements the string method for the response.
         """
+
+        # Check if self.data is a Pydantic model and convert to dict, else use as is
+        data_repr = self.data.dict() if hasattr(self.data, "dict") else self.data
+
         return json.dumps(
             {
                 'raw_response': str(self.raw_response),  # should display the Request string representation 
                 'response_model_name': self.response_model_name,
-                'data': self.data.dict() if self.data else {}
+                'data': data_repr
             },
             indent=4
         )
@@ -99,7 +112,8 @@ class SierraRESTAPI:
         self.expires_at = 0
         
          # set up a requests session object
-        self.session = requests.Session()
+        # self.session = requests.Session()
+        self.session = httpx.AsyncClient()
 
         # set the default session headers
         self.session.headers = {
@@ -316,28 +330,34 @@ class SierraRESTAPI:
         # Log the request being made
         self.logger.debug(f'POST {{"endpoint": "{endpoint_url}", "params": "{params}", "json_body": "{json_body}"}}')
         
-        # create a request object and then prepare it
-        request = requests.Request(
-            method='POST', 
+        # # create a request object and then prepare it
+        # request = requests.Request(
+        #     method='POST', 
+        #     url=endpoint_url,
+        #     params=params,
+        #     json=json_body
+        # )
+        # # prepare the request with the session
+        # prepared_request = self.session.prepare_request(request)
+
+        # # send the prepared request (POST)
+        # response = self.session.send(prepared_request)
+        # self.request_count += 1
+
+        # debug_text = (
+        #     f'"response.status_code": {response.status_code}, ' +
+        #     f'"prepared_request.url": {prepared_request.url}, ' +
+        #     f'"prepared_request.params": {json.dumps(params)}, ' +  # Convert params to a JSON string
+        #     f'"prepared_request.body": {prepared_request.body.decode("utf-8")}, ' +
+        #     f'"request_count": {self.request_count}'
+        # )
+        # self.logger.debug(debug_text)
+
+        response = self.session.post(
             url=endpoint_url,
             params=params,
             json=json_body
         )
-        # prepare the request with the session
-        prepared_request = self.session.prepare_request(request)
-
-        # send the prepared request (POST)
-        response = self.session.send(prepared_request)
-        self.request_count += 1
-
-        debug_text = (
-            f'"response.status_code": {response.status_code}, ' +
-            f'"prepared_request.url": {prepared_request.url}, ' +
-            f'"prepared_request.params": {json.dumps(params)}, ' +  # Convert params to a JSON string
-            f'"prepared_request.body": {prepared_request.body.decode("utf-8")}, ' +
-            f'"request_count": {self.request_count}'
-        )
-        self.logger.debug(debug_text)
 
         # Check for non-200 responses
         if response.status_code != 200:

@@ -5,21 +5,41 @@ from sierra_ils_utils import SierraAPI
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+# def test_initialize_session():
+#     # Initialize the API object
+#     sierra_api = SierraAPI(
+#         sierra_api_base_url="http://sierra.library.org/", 
+#         sierra_api_key="api_key", 
+#         sierra_api_secret="api_secret"
+#     )
+    
+#     # Validate the attributes after initialization
+#     assert sierra_api.request_count == 0
+#     assert sierra_api.expires_at == 0
+#     assert sierra_api.session.headers == {
+#         'accept': 'application/json',
+#         'Authorization': '',
+#     }
+
 def test_initialize_session():
     # Initialize the API object
     sierra_api = SierraAPI(
-        sierra_api_base_url="http://sierra.library.org/", 
-        sierra_api_key="api_key", 
+        sierra_api_base_url="http://sierra.library.org/",
+        sierra_api_key="api_key",
         sierra_api_secret="api_secret"
     )
-    
+
     # Validate the attributes after initialization
     assert sierra_api.request_count == 0
     assert sierra_api.expires_at == 0
-    assert sierra_api.session.headers == {
-        'accept': 'application/json',
-        'Authorization': '',
-    }
+
+    # Check if specific headers are set as expected
+    assert sierra_api.session.headers.get('accept') == 'application/json'
+    assert sierra_api.session.headers.get('Authorization') == ''
+
+    # Optionally, if you want to check if these are the only headers set (ignoring httpx default headers):
+    # assert list(sierra_api.session.headers.keys()) == ['accept', 'Authorization']
+
 
 
 # TODO: rewrite this
