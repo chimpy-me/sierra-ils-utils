@@ -4,7 +4,7 @@ from .sierra_api_v6_endpoints import endpoints, Version
 import logging
 from pydantic import BaseModel
 from pymarc import Record
-import requests
+# import requests
 import httpx
 import asyncio
 

@@ -1,6 +1,7 @@
 import logging
 import pytest
-import requests
+# import requests
+import httpx
 from sierra_ils_utils.decorators import hybrid_retry_decorator, authenticate
 import time
 from unittest.mock import Mock, call, patch
@@ -36,10 +37,12 @@ def test_hybrid_retry_decorator_transient_failures():
 
         @hybrid_retry_decorator(max_retries=3, initial_wait_time=1)
         def transient_failure_method(self):
-            raise requests.ConnectionError("Transient connection error")
+            # raise requests.ConnectionError("Transient connection error")
+            raise httpx.ConnectError("Transient connection error")
 
     dummy = DummyClass()
-    with pytest.raises(requests.ConnectionError, match="Transient connection error"):
+    # with pytest.raises(requests.ConnectionError, match="Transient connection error"):
+    with pytest.raises(httpx.ConnectError, match="Transient connection error"):
         dummy.transient_failure_method()
 
 def test_hybrid_retry_decorator_jitter_transient_failures():
@@ -50,7 +53,8 @@ def test_hybrid_retry_decorator_jitter_transient_failures():
 
         @hybrid_retry_decorator(max_retries=4, initial_wait_time=1)
         def transient_failure_method(self):
-            raise requests.Timeout("Transient timeout error")
+            # raise requests.Timeout("Transient timeout error")
+            raise httpx.TimeoutException("Transient timeout error")
 
     # Override sleep method to capture sleep times
     original_sleep = time.sleep
@@ -61,7 +65,8 @@ def test_hybrid_retry_decorator_jitter_transient_failures():
     time.sleep = mock_sleep
 
     dummy = DummyClass()
-    with pytest.raises(requests.Timeout, match="Transient timeout error"):
+    # with pytest.raises(requests.Timeout, match="Transient timeout error"):
+    with pytest.raises(httpx.TimeoutException, match="Transient timeout error"):
         dummy.transient_failure_method()
 
     # Restore original sleep
