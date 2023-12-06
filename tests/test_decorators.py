@@ -1,6 +1,5 @@
 import logging
 import pytest
-# import requests
 import httpx
 from sierra_ils_utils.decorators import hybrid_retry_decorator, authenticate
 import time
@@ -65,7 +64,7 @@ def test_hybrid_retry_decorator_jitter_transient_failures():
     time.sleep = mock_sleep
 
     dummy = DummyClass()
-    # with pytest.raises(requests.Timeout, match="Transient timeout error"):
+    
     with pytest.raises(httpx.TimeoutException, match="Transient timeout error"):
         dummy.transient_failure_method()
 

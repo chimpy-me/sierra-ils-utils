@@ -1,15 +1,13 @@
+import asyncio
 from .decorators import hybrid_retry_decorator, authenticate
+import httpx
 import json
 from .sierra_api_v6_endpoints import endpoints, Version
 import logging
 from pydantic import BaseModel
 from pymarc import Record
-# import requests
-import httpx
-import asyncio
-
-from typing import Literal, Dict, Union, Any, Optional
 from time import sleep, time
+from typing import Literal, Dict, Union, Any, Optional
 
 # Set up the logger at the module level
 logger = logging.getLogger(__name__)
@@ -48,18 +46,11 @@ class SierraAPIResponse(BaseModel):
             indent=4
         )
 
-    # def pymarc_record_to_str(self, record: Record) -> str:
-    #     """
-    #     Represent a pymarc Record as a string.
-    #     """
-    #     return 'pymarc record here!'
-
     def __repr__(self):
         """
         This is so a notebook automatically displays the string representation of the last expression.
         """
         return self.__str__()
-
 
 
 class SierraRESTAPI:
@@ -77,17 +68,23 @@ class SierraRESTAPI:
     """
     def __init__(
             self,
-            sierra_api_base_url,
-            sierra_api_key,
-            sierra_api_secret,
-            endpoints=endpoints,  # default to the latest set of endpoints. e.g. .sierra_api_v6_endpoints import endpoints
-            log_level=logging.WARNING,  # default the logger to only display warnings
+            sierra_api_base_url: str,
+            sierra_api_key: str,
+            sierra_api_secret: str,
+            endpoints: Dict = endpoints,       # default to the latest set of endpoints
+                                               #   ... e.g. .sierra_api_v6_endpoints import endpoints
+            log_level: int = logging.WARNING,  # default the logger to only display warnings
+            log_level_httpx: int = logging.WARNING  # default the httpx logger to warnings
         ):
 
         # TODO make it easier to switch versions of the endpoints?
 
+        # set this log level accordingly
         self.logger = logger
         self.logger.setLevel(log_level)
+
+        # set the log level of httpx accordingly
+        logging.getLogger('httpx').setLevel(log_level_httpx)
 
         self.session = None  # will contain the http client after init
         
@@ -104,17 +101,12 @@ class SierraRESTAPI:
         self._initialize_session()
 
         # Log the init
-        # self.logger.debug(f"INIT base_url: {self.base_url} endpoints version : {Version}")
-        # self.logger.debug(f"INIT session.headers: {self.session.headers} self. : {Version}")
         self.logger.debug(f"INIT {self.info()}")
 
     def _initialize_session(self):
         self.request_count = 0
         # (expires_at is an integer "timestamp" --seconds since UNIX Epoch
         self.expires_at = 0
-        
-        # set up a requests session object
-        # self.session = requests.Session()
 
         # For now, use the synchronous `httpx.Client()` 
         # TODO: Maybe use the Async Client only for fetching multiple "pages"?
@@ -161,10 +153,8 @@ class SierraRESTAPI:
     def get(
         self, 
         template: str,
-        params:dict = None,
-        path_params:dict = None
-        # *args, 
-        # **kwargs
+        params: Dict = None,
+        path_params: Dict = None
     ) -> SierraAPIResponse:
         """
         Sends a GET request to the specified endpoint.
@@ -220,8 +210,7 @@ class SierraRESTAPI:
         # Send the GET request
         response = self.session.get(
             endpoint_url, 
-            params=params, 
-            # **kwargs
+            params=params,
         )
         
         self.request_count += 1
@@ -240,8 +229,6 @@ class SierraRESTAPI:
         self.logger.debug(f"GET {response.url} {response.status_code} ✅")
 
         # Parse the response using the appropriate Pydantic model
-        # expected_model = self.endpoints["GET"][template]["response_model"]
-
         try:
             expected_model = self.endpoints["GET"][template]["responses"][response.status_code] 
         except KeyError as e:
@@ -259,11 +246,6 @@ class SierraRESTAPI:
             self.logger.error(f"Error: {e}")
             parsed_data = None
 
-        # return SierraAPIResponse(
-        #     model_name, 
-        #     parsed_data, 
-        #     response
-        # )
         return SierraAPIResponse(
             response_model_name=model_name,
             data=parsed_data,
@@ -275,9 +257,9 @@ class SierraRESTAPI:
     # def post(self, template, json_body, *args, **kwargs):
     def post(
         self, 
-        template, 
-        params=None, 
-        json_body=None
+        template: str, 
+        params: Optional[Dict] = None, 
+        json_body: Union[str, dict, None] = None
     ) -> SierraAPIResponse:
         """
         Sends a POST request to the specified endpoint.
