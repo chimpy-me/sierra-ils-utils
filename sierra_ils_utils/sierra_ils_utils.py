@@ -155,7 +155,7 @@ class SierraRESTAPI:
         template: str,
         params: Dict = None,
         path_params: Dict = None
-    ) -> SierraAPIResponse:
+    ) -> Union[SierraAPIResponse, None]:
         """
         Sends a GET request to the specified endpoint.
 
@@ -194,16 +194,13 @@ class SierraRESTAPI:
         # e.g. 'items/{id}' -> 'items/{123}'
         path = template.format(**path_params)
 
-        # ensure that the endpoint_url is properly formatted with the given path
+        # ensure that the endpoint_url is properly formatted
         endpoint_url = self.base_url.rstrip('/') + '/' + path.lstrip('/')
 
         # Validate that the endpoint is defined 
         if template not in self.endpoints['GET']:
             raise ValueError(f"Endpoint: {template} not defined in endpoints")
         
-        # ensure that the endpoint_url is properly formatted
-        endpoint_url = self.base_url.rstrip('/') + '/' + path.lstrip('/')
-
         # Log the request being made
         self.logger.debug(f'GET {{"endpoint": "{endpoint_url}", "params": "{params}"}}')
 
@@ -233,7 +230,86 @@ class SierraRESTAPI:
             expected_model = self.endpoints["GET"][template]["responses"][response.status_code] 
         except KeyError as e:
             self.logger.error(f"Error: {e}")
-            # should halt the program
+            # should halt?
+            return None
+        
+        # initialize the model name to None
+        model_name = None
+
+        try:
+            # parsed_data = expected_model.model_validate(response.json())  # pydantic v2
+            parsed_data = expected_model.parse_obj(response.json())
+            model_name = expected_model.__name__
+        except Exception as e:
+            self.logger.error(f"Error: {e}")
+            parsed_data = None
+
+        return SierraAPIResponse(
+            response_model_name=model_name,
+            data=parsed_data,
+            raw_response=response
+        )
+
+    @hybrid_retry_decorator()
+    @authenticate
+    async def get_async(
+        self, 
+        template: str,
+        params: Optional[Dict] = None,
+        path_params: Optional[Dict] = None
+    ) -> SierraAPIResponse:
+        """
+        Asynchronously sends a GET request to the specified endpoint.
+        
+        Args:
+        - template (str): The API endpoint (relative to the base URL).
+        - params (Optional[Dict]): Query parameters.
+        - path_params (Optional[Dict]): Dynamic path parameters.
+
+        Returns:
+        - SierraAPIResponse object containing:
+            - .data: The parsed data as a Pydantic model.
+            - .raw_response: The raw Response object from the request.
+        """
+        if params is None:
+            params = {}
+        if path_params is None:
+            path_params = {}
+        
+        path = template.format(**path_params)
+        endpoint_url = self.base_url.rstrip('/') + '/' + path.lstrip('/')
+
+        if template not in self.endpoints['GET']:
+            raise ValueError(f"Endpoint: {template} not defined in endpoints")
+        
+        self.logger.debug(f'Async GET {{"endpoint": "{endpoint_url}", "params": "{params}"}}')
+
+        # Use httpx.AsyncClient for asynchronous requests
+        async with httpx.AsyncClient() as client:
+            response = await client.get(endpoint_url, params=params)
+
+        self.request_count += 1
+        self.logger.debug(f'request count: {self.request_count}')
+
+        # Check for non-200 responses
+        if response.status_code != 200:
+            self.logger.warning(f"GET response non-200 : {response.text}")
+            if response.status_code not in (404,):
+                self.logger.error(f"Error: {response.text}")
+                raise Exception(f"GET response non-200 : {response.text}")
+            else:
+                self.logger.debug(f"GET {response.url} {response.status_code} ❎")
+                return None
+
+        self.logger.debug(f"GET {response.url} {response.status_code} ✅")
+
+        # Parse the response using the appropriate Pydantic model
+        try:
+            expected_model = self.endpoints["GET"][template]["responses"][response.status_code] 
+        except KeyError as e:
+            self.logger.error(f"Error: {e}")
+            # should halt?
+            return None
         
         # initialize the model name to None
         model_name = None
