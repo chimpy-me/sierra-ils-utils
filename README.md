@@ -7,6 +7,8 @@ Python wrappers for working with the Sierra ILS
 
 This documentation provides an overview of the design approach for extending the Sierra API client. The primary objective is to create a flexible and extensible structure that allows for easy integration of new endpoints, response models, and HTTP methods.
 
+Note: To set up a dev environment for this, use the pip requirements text file located at `misc/dev_requirements.txt`
+
 ### The Approach
 
 The core of this approach revolves around three main components:

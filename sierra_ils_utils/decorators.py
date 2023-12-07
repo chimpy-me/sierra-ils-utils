@@ -1,104 +1,225 @@
+import asyncio
+import functools
+import httpx
 import json
 import logging
 from random import uniform
-from time import sleep, time
-# import requests
-import httpx
-import functools
+import time
 
 logger = logging.getLogger(__name__)
 
+# def hybrid_retry_decorator(
+#         max_retries=5, 
+#         initial_wait_time=3,
+#         initial_exponential_factor=2,
+#         initial_retries=3,
+#         fixed_interval=150,  # 2.5 minutes
+#         retry_on_exceptions=None,
+#         retry_on_status_codes=None
+#     ):
+#     """
+#     A decorator factory that adds a hybrid retry mechanism to functions/methods.
+    
+#     This decorator wraps the given function and catches any exceptions raised within it. 
+#     If an exception is caught, it employs a hybrid back-off strategy for retries.
+
+#     The hybrid back-off strategy consists of two parts:
+#     1. Exponential back-off for the first few attempts.
+#     2. Fixed interval retries for the remaining attempts.
+
+#     Parameters:
+#     - max_retries (int): Maximum number of retries before giving up. Default is 7.
+#     - initial_wait_time (float): Initial waiting time in seconds before the first retry. Default is 3 seconds.
+#     - initial_exponential_factor (float): Factor by which the wait time is multiplied after each retry during the exponential back-off phase. Default is 1.5.
+#     - initial_retries (int): Number of times to employ the exponential back-off before switching to fixed interval retries. Default is 5.
+#     - fixed_interval (float): Time in seconds to wait between retries after the exponential back-off phase. Default is 150 seconds (2.5 minutes).
+#     - retry_on_exceptions (tuple): Exceptions on which to retry. Defaults to requests' transient errors.
+#     - retry_on_status_codes (list): List of HTTP status codes on which to retry.
+
+#     Notes:
+#     - Random jitter (a random value between +/- 10% of the wait time) is added to the wait time for each retry to avoid synchronized retries.
+#     - If all retries fail, the last exception raised in the wrapped function will be re-raised.
+    
+#     Returns:
+#     - A decorated function that will retry upon failure using the hybrid back-off strategy.
+#     """
+#     # if retry_on_exceptions is None:
+#     #     # Default exceptions for requests that are generally considered transient
+#     #     retry_on_exceptions = (requests.ConnectionError, requests.Timeout, requests.TooManyRedirects)
+#     if retry_on_exceptions is None:
+#         retry_on_exceptions = (httpx.ConnectError, httpx.RequestError, httpx.TimeoutException, httpx.TooManyRedirects)
+    
+#     if retry_on_status_codes is None:
+#         # Default status codes to retry on (5XX server errors)
+#         retry_on_status_codes = [500, 502, 503, 504]
+
+#     def decorator(func):
+#         def wrapper(self, *args, **kwargs):
+#             retries = 0
+#             wait_time = initial_wait_time
+#             while retries <= max_retries:
+#                 try:
+#                     # sierra_api_response = func(self, *args, **kwargs)  # this is going to be the SierraAPIResponse
+                    
+#                     sierra_api_response = func(self, *args, **kwargs)  # Expecting a SierraAPIResponse object
+#                     httpx_response = sierra_api_response.raw_response  # Extracting the httpx.Response object
+
+
+#                     if sierra_api_response and httpx_response and httpx_response.status_code in retry_on_status_codes:
+#                         # raise requests.HTTPError(f"HTTP {response.status_code} Error")
+#                         raise httpx.HTTPStatusError(
+#                             f"HTTP {httpx_response.status_code} Error",
+#                             request=httpx_response.request,
+#                             response=httpx_response
+#                         )
+                    
+#                     return sierra_api_response  # if we were successful, send the actual response
+                
+#                 except retry_on_exceptions as e:
+#                     # ... keep trying, until we run out of retries
+
+#                     self.logger.warning(
+#                         f"Retry attempt {retries + 1} after failure: {str(e)}. Waiting {wait_time} seconds before retrying."
+#                     )
+#                     if retries == max_retries - 1:
+#                         self.logger.error(f"Max retries reached. Function {func.__name__} failed with exception: {str(e)}")
+#                         raise e
+                    
+#                     sleep(wait_time)
+#                     retries += 1
+                    
+#                     if retries < initial_retries:
+#                         # Increase the wait time with random jitter
+#                         wait_time = initial_exponential_factor \
+#                             * (wait_time * uniform(0.9, 1.1))
+#                     else:
+#                         # Add fixed interval with random jitter
+#                         wait_time += fixed_interval \
+#                             * uniform(0.9, 1.1)
+    
+#         return wrapper
+    
+#     return decorator
+
 def hybrid_retry_decorator(
-        max_retries=5, 
+        max_retries=5,
         initial_wait_time=3,
         initial_exponential_factor=2,
         initial_retries=3,
-        fixed_interval=150,  # 2.5 minutes
-        retry_on_exceptions=None,
-        retry_on_status_codes=None
+        fixed_interval=150,  # Default 2.5 minutes
+        retry_on_exceptions=(
+            httpx.ConnectError, 
+            httpx.RequestError, 
+            httpx.TimeoutException, 
+            httpx.TooManyRedirects
+        ),  # Default to retry on the above httpx exceptions
+        retry_on_status_codes=[
+            500, 502, 503, 504
+        ]  # Default to retry on the above http status codes
     ):
     """
-    A decorator factory that adds a hybrid retry mechanism to functions/methods.
-    
-    This decorator wraps the given function and catches any exceptions raised within it. 
-    If an exception is caught, it employs a hybrid back-off strategy for retries.
+    A decorator to add retry logic to HTTP requests.
 
-    The hybrid back-off strategy consists of two parts:
-    1. Exponential back-off for the first few attempts.
-    2. Fixed interval retries for the remaining attempts.
+    NOTE: this decorator is expected to wrap a function that returns the SierraAPIResponse object model
 
-    Parameters:
-    - max_retries (int): Maximum number of retries before giving up. Default is 7.
-    - initial_wait_time (float): Initial waiting time in seconds before the first retry. Default is 3 seconds.
-    - initial_exponential_factor (float): Factor by which the wait time is multiplied after each retry during the exponential back-off phase. Default is 1.5.
-    - initial_retries (int): Number of times to employ the exponential back-off before switching to fixed interval retries. Default is 5.
-    - fixed_interval (float): Time in seconds to wait between retries after the exponential back-off phase. Default is 150 seconds (2.5 minutes).
-    - retry_on_exceptions (tuple): Exceptions on which to retry. Defaults to requests' transient errors.
-    - retry_on_status_codes (list): List of HTTP status codes on which to retry.
+    This decorator adds a hybrid retry mechanism (exponential backoff and fixed interval) 
+    to functions making HTTP requests, handling both synchronous and asynchronous calls.
 
-    Notes:
-    - Random jitter (a random value between +/- 10% of the wait time) is added to the wait time for each retry to avoid synchronized retries.
-    - If all retries fail, the last exception raised in the wrapped function will be re-raised.
-    
+    Args:
+        max_retries (int): Maximum number of retries.
+        initial_wait_time (int): Initial wait time for the exponential backoff.
+        initial_exponential_factor (int): Factor by which the wait time increases during exponential backoff.
+        initial_retries (int): Number of retries using exponential backoff before switching to fixed interval.
+        fixed_interval (int): Fixed interval (in seconds) between retries after the initial retries.
+        retry_on_exceptions (tuple): Tuple of exception classes that should trigger a retry.
+        retry_on_status_codes (list): List of HTTP status codes that should trigger a retry.
+
     Returns:
-    - A decorated function that will retry upon failure using the hybrid back-off strategy.
+        A wrapped function with retry logic.
     """
-    # if retry_on_exceptions is None:
-    #     # Default exceptions for requests that are generally considered transient
-    #     retry_on_exceptions = (requests.ConnectionError, requests.Timeout, requests.TooManyRedirects)
-    if retry_on_exceptions is None:
-        retry_on_exceptions = (httpx.ConnectError, httpx.RequestError, httpx.TimeoutException, httpx.TooManyRedirects)
-    
-    if retry_on_status_codes is None:
-        # Default status codes to retry on (5XX server errors)
-        retry_on_status_codes = [500, 502, 503, 504]
 
     def decorator(func):
-        def wrapper(self, *args, **kwargs):
+
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            """
+            Asynchronous wrapper function for handling retries.
+            """
             retries = 0
             wait_time = initial_wait_time
-            while retries <= max_retries:
+            while retries < max_retries:
+
                 try:
-                    # sierra_api_response = func(self, *args, **kwargs)  # this is going to be the SierraAPIResponse
-                    
-                    sierra_api_response = func(self, *args, **kwargs)  # Expecting a SierraAPIResponse object
-                    httpx_response = sierra_api_response.raw_response  # Extracting the httpx.Response object
-
-
-                    if sierra_api_response and httpx_response and httpx_response.status_code in retry_on_status_codes:
-                        # raise requests.HTTPError(f"HTTP {response.status_code} Error")
+                    response = await func(*args, **kwargs)
+                    # Using 'response.raw_response.status_code' for custom response objects
+                    if (
+                        retry_on_status_codes
+                        and getattr(response.raw_response, 'status_code', None) in retry_on_status_codes
+                    ):
                         raise httpx.HTTPStatusError(
-                            f"HTTP {httpx_response.status_code} Error",
-                            request=httpx_response.request,
-                            response=httpx_response
+                            'Retry on status code', 
+                            request=None, 
+                            response=response.raw_response
                         )
                     
-                    return sierra_api_response  # if we were successful, send the actual response
+                    return response  
                 
                 except retry_on_exceptions as e:
-                    # ... keep trying, until we run out of retries
-
-                    self.logger.warning(
-                        f"Retry attempt {retries + 1} after failure: {str(e)}. Waiting {wait_time} seconds before retrying."
-                    )
-                    if retries == max_retries - 1:
-                        self.logger.error(f"Max retries reached. Function {func.__name__} failed with exception: {str(e)}")
-                        raise e
-                    
-                    sleep(wait_time)
-                    retries += 1
-                    
-                    if retries < initial_retries:
-                        # Increase the wait time with random jitter
-                        wait_time = initial_exponential_factor \
-                            * (wait_time * uniform(0.9, 1.1))
+                    if (
+                        not retry_on_status_codes
+                        or not getattr(e, 'response', None) 
+                        or e.response.status_code not in retry_on_status_codes
+                    ):
+                        retries += 1
+                        if retries <= initial_retries:
+                            wait_time *= initial_exponential_factor
+                        else:
+                            wait_time = fixed_interval
+                        await asyncio.sleep(wait_time)
                     else:
-                        # Add fixed interval with random jitter
-                        wait_time += fixed_interval \
-                            * uniform(0.9, 1.1)
-    
-        return wrapper
-    
+                        raise e
+            
+            raise Exception('Max retries reached')
+        
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            """
+            Synchronous wrapper function for handling retries.
+            """
+            retries = 0
+            wait_time = initial_wait_time
+            while retries < max_retries:
+                try:
+                    response = func(*args, **kwargs)
+                    # Using 'response.raw_response.status_code' for custom response objects
+                    if (
+                        retry_on_status_codes
+                        and getattr(response.raw_response, 'status_code', None) in retry_on_status_codes
+                    ):
+                        raise httpx.HTTPStatusError('Retry on status code', request=None, response=response.raw_response)
+                    return response
+                except retry_on_exceptions as e:
+                    if (
+                        not retry_on_status_codes
+                        or not getattr(e, 'response', None) 
+                        or e.response.status_code not in retry_on_status_codes
+                    ):
+                        retries += 1
+                        if retries <= initial_retries:
+                            wait_time *= initial_exponential_factor
+                        else:
+                            wait_time = fixed_interval
+                        time.sleep(wait_time)
+                    else:
+                        raise e
+            raise Exception('Max retries reached')
+        
+        # Determine if the function is asynchronous and return the appropriate wrapper
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        else:
+            return sync_wrapper
+
     return decorator
 
 def authenticate(func):
