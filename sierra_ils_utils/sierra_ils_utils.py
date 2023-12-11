@@ -451,18 +451,41 @@ class SierraQueryBuilder:
     def __init__(self):
         self.queries = []
         self.current_query = None
+        self.last_was_operator = False
 
-    def start_query(self, record_type, field_tag):
+    def start_query(
+            self, 
+            record_type: str, 
+            field_tag: Optional[str] = None,
+            id: Optional[int] = None
+        ):
         if self.current_query is not None:
             raise ValueError("Previous query not ended. Use end_query to finish.")
-        self.current_query = {
-            "target": {
-                "record": {"type": record_type},
-                "field": {"tag": field_tag}
-            },
-            "expr": []
-        }
-        return self
+        if self.last_was_operator:
+            self.last_was_operator = False
+        if (field_tag and id):
+            raise ValueError("Can not use both field tag and fixed field id together")
+        if field_tag:
+            self.current_query = {
+                "target": {
+                    "record": {"type": record_type},
+                    "field": {"tag": field_tag}
+                },
+                "expr": []
+            }
+            return self
+        elif id:
+            # if id is given, then it's a fixed field id
+            self.current_query = {
+                "target": {
+                    "record": {"type": record_type},
+                    "id": id
+                },
+                "expr": []
+            }
+            return self
+        else:
+            raise ValueError('query must target either a varfield or a fixed field')
 
     def add_expression(self, op, operands):
         if self.current_query is None:
@@ -478,8 +501,8 @@ class SierraQueryBuilder:
         return self
 
     def add_logical_operator(self, operator):
-        if operator not in ['and', 'or']:
-            raise ValueError("Operator must be 'and' or 'or'.")
+        if operator not in ['and', 'or', 'and not']:
+            raise ValueError("Operator must be 'and' or 'or' or 'and not'.")
         if self.current_query and not isinstance(self.current_query["expr"][-1], str):
             self.current_query["expr"].append(operator)
         elif not self.queries or self.last_was_operator:
@@ -528,4 +551,17 @@ class SierraQueryBuilder:
 
     def __repr__(self):
         return self.__str__()
+    
+    def __add__(self, other):
+        # define behavior for the + operator
+        try:
+            return {
+                "queries": [
+                    self.build(),
+                    'and',
+                    other.build()
+                ]
+            }
+        except Exception as e:
+            print(f'Error: {e}')
 
