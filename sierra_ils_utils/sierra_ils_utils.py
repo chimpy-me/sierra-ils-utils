@@ -74,7 +74,8 @@ class SierraRESTAPI:
             endpoints: Dict = endpoints,       # default to the latest set of endpoints
                                                #   ... e.g. .sierra_api_v6_endpoints import endpoints
             log_level: int = logging.WARNING,  # default the logger to only display warnings
-            log_level_httpx: int = logging.WARNING  # default the httpx logger to warnings
+            log_level_httpx: int = logging.WARNING,  # default the httpx logger to warnings
+            httpx_timeout: httpx.Timeout = httpx.Timeout(None)  # default to no httpx timeout
         ):
 
         # TODO make it easier to switch versions of the endpoints?
@@ -97,6 +98,9 @@ class SierraRESTAPI:
         # store common urls here?
         self.token_url = self.base_url + 'token'
 
+        # set the default timeout
+        self.httpx_timeout = httpx_timeout
+
         # finally init the session
         self._initialize_session()
 
@@ -118,7 +122,9 @@ class SierraRESTAPI:
             self.session.close()    
         
         # Initialize a new HTTPX client
-        self.session = httpx.Client()
+        self.session = httpx.Client(
+            timeout=self.httpx_timeout
+        )
 
         # set the default session headers
         self.session.headers = {
