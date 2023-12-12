@@ -455,17 +455,44 @@ class SierraQueryBuilder:
 
     def start_query(
             self, 
-            record_type: str, 
+            record_type: str,
+            field: Optional[Dict] = None,
             field_tag: Optional[str] = None,
             id: Optional[int] = None
         ):
+        """
+        the beginning of a simple query
+        e.g.  
+        
+            `q.start_query(record_type='bib', field={'marcTag': '264' 'ind1': ' ', 'ind2': '1', 'subfields': 'c'})`
+              
+            `q.start_query(record_type='bib', field_tag='a')`
+              
+            `q.start_query(record_type='item', id=88)`
+        """
         if self.current_query is not None:
             raise ValueError("Previous query not ended. Use end_query to finish.")
+        
         if self.last_was_operator:
             self.last_was_operator = False
-        if (field_tag and id):
-            raise ValueError("Can not use both field tag and fixed field id together")
-        if field_tag:
+        
+        # make sure only one param is set for the group
+        if sum(p is not None for p in [field, field_tag, id]) > 1:
+            raise ValueError("Only one of field, field_tag, or id can be set.")
+        
+        if field:
+            # TODO should have some sort of check that the dict is properly formatted
+            # ... but for now, just take a dict, hopefully it should look like this
+            # ... {"marcTag": "264", "ind1": " ", "ind2": "1", "subfields": "c"}
+            self.current_query = {
+                "target": {
+                    "record": {"type": record_type},
+                    "field": field
+                },
+                "expr": []
+            }
+            return self
+        elif field_tag:
             self.current_query = {
                 "target": {
                     "record": {"type": record_type},
@@ -547,6 +574,9 @@ class SierraQueryBuilder:
         return json.dumps(self.build(), indent=2)
 
     def __str__(self):
+        if self.current_query is not None:
+            return "<SierraQueryBuilder: Unfinished Query>"
+        
         return self.json()
 
     def __repr__(self):
