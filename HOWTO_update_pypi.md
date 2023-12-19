@@ -28,7 +28,8 @@ Updating your Python project on PyPI involves several key steps. Here's a step-b
    - Check your project page on PyPI and test installation using `pip install`.
 
 8. **Tag Your Release:**
-   - Tag the release in your version control system, e.g., `git tag -a v1.2.3 -m "version 1.2.3"`.
+   - Tag the release in your version control system, e.g., `git tag -a v0.0.1a20231213 -m "version 0.0.1a20231213"`.
+   - Push the Tag to Remote Repository, e.g. `git push origin v0.0.1a20231213`
 
 9. **Announce Your Release:**
    - Notify your user base of the new release, if applicable.
