@@ -1,6 +1,8 @@
 # sierra-ils-utils
 Python wrappers for working with the Sierra ILS 
 
+See this IUG 2024 Conference Presentation Blog Post for more details and example use-cases: [chimpy.me/blog/posts/iug-2024/](https://chimpy.me/blog/posts/iug-2024/) 
+
 ## Sierra API Client Documentation
 
 ### Introduction
