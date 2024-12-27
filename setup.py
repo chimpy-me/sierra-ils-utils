@@ -9,7 +9,7 @@ setup(
         "pymarc>=5.2.0,<6.0.0",
     ],
     extras_require={
-        "test": ["pytest>=8.3.4","pytest-asyncio>=0.25.0","respx>=0.22.0"],
+        "test": ["pytest>=8.3.4","pytest-asyncio>=0.25.0","respx>=0.22.0",],
     },
     author="Ray Voelker",
     author_email="ray.voelker@gmail.com",

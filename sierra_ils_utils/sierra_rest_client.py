@@ -286,6 +286,105 @@ class SierraRESTClient:
                 logger.warning("Async request cancelled.")
                 raise
 
+    async def _fetch_page_async(
+        self,
+        endpoint,
+        start_id,
+        limit=2000,
+        extra_params=None
+    ):
+        """
+        Helper function for `async_yield_entries`
+        
+        Fetch a single page of results using an 'open range' starting at 
+        `start_id`
+
+        Returns a list of 'entries' on success, or an empty list if none found
+        """
+        if extra_params is None:
+            extra_params = {}
+        params = {
+            "id": f"[{start_id},]",  # e.g. '[0,]' means "from ID=0 up to ???"
+            "limit": limit,
+            **extra_params
+        }
+        response = await self.async_request(
+            "GET",
+            endpoint, 
+            params=params
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("entries", [])
+        else:
+            logger.warning(
+                "Page fetch returned status %s: %s", 
+                response.status_code, 
+                response.text
+            )
+            return []
+        
+    async def async_yield_entries(
+        self, 
+        endpoint, 
+        start_id=0, 
+        limit=2000, 
+        concurrency=10, 
+        params={}
+    ):
+        """
+        Stream all records from `endpoint`, beginning at `start_id`.
+        
+        This uses concurrent 'page fetches' to speed things up:
+          - concurrency=N => fetch up to N pages at once.
+          
+        Yields individual entries (one at a time) so you can consume them 
+        in a streaming fashion.
+        
+        Args:
+            endpoint (str): API endpoint (e.g., 'items/' or 'patrons/')
+            start_id (int): Starting ID to fetch from.
+            limit (int): Number of records per page.
+            concurrency (int): Number of concurrent requests per batch.
+            extra_params (dict): Optional extra query parameters.
+
+        Yields:
+            dict: A single API record (entry).
+        """
+
+        # Continuously fetch pages until we get no results
+        while True:
+            # Build tasks for one "batch" of concurrent page fetches
+            tasks = []
+            for i in range(concurrency):
+                page_start_id = start_id + (i * limit)
+                tasks.append(
+                    self._fetch_page_async(endpoint, page_start_id, limit, params)
+                )
+
+            # Run the tasks concurrently and gather results
+            results = await asyncio.gather(*tasks)
+
+            # Flatten all results from this batch
+            batch_entries = [entry for page in results for entry in page]
+
+            if not batch_entries:
+                # No more entries -> stop
+                break
+
+            # Sort by ID so we know the highest one 
+            # (or remove if you don't need strict ID ordering).
+            batch_entries.sort(key=lambda x: int(x["id"]))
+
+            # Yield the entries one-by-one
+            for entry in batch_entries:
+                yield entry
+
+            # Update `start_id` for the next batch 
+            # using the highest ID from this batch
+            last_id = int(batch_entries[-1]["id"])
+            start_id = last_id + 1
+
     def close(self):
         logger.debug("Closing sync client.")
         self._sync_client.close()

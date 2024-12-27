@@ -1,6 +1,6 @@
 from .sierra_rest_client import SierraRESTClient
 
-# Create an alias
+# Create aliases
 SierraAPI = SierraRESTClient
 
-__all__ = ["SierraRESTClient"]
+__all__ = ["SierraRESTClient", "SierraAsyncPaginator", "SierraAPI", "Paginator"]
