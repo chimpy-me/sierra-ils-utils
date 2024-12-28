@@ -1,7 +1,6 @@
+from httpx import Response
 import pytest
 import respx
-from httpx import Response
-import asyncio
 from sierra_ils_utils import SierraRESTClient
 
 @pytest.mark.asyncio

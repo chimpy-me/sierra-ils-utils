@@ -324,7 +324,7 @@ class SierraRESTClient:
             )
             return []
         
-    async def async_yield_entries(
+    def yield_entries(
         self, 
         endpoint, 
         start_id=0, 
@@ -333,7 +333,8 @@ class SierraRESTClient:
         params={}
     ):
         """
-        Stream all records from `endpoint`, beginning at `start_id`.
+        Synchronous generator for streaming all records from the specified
+        endpoint beginning at `start_id`.
         
         This uses concurrent 'page fetches' to speed things up:
           - concurrency=N => fetch up to N pages at once.
@@ -352,38 +353,48 @@ class SierraRESTClient:
             dict: A single API record (entry).
         """
 
-        # Continuously fetch pages until we get no results
-        while True:
-            # Build tasks for one "batch" of concurrent page fetches
-            tasks = []
-            for i in range(concurrency):
-                page_start_id = start_id + (i * limit)
-                tasks.append(
-                    self._fetch_page_async(endpoint, page_start_id, limit, params)
-                )
+        async def async_generator():
+            # Internal async generator to fetch entries using async logic
+            nonlocal start_id
 
-            # Run the tasks concurrently and gather results
-            results = await asyncio.gather(*tasks)
+            while True:
+                tasks = []
+                for i in range(concurrency):
+                    page_start_id = start_id + (i * limit)
+                    tasks.append(self._fetch_page_async(endpoint, page_start_id, limit, params))
 
-            # Flatten all results from this batch
-            batch_entries = [entry for page in results for entry in page]
+                # Run the tasks concurrently and gather results
+                results = await asyncio.gather(*tasks)
 
-            if not batch_entries:
-                # No more entries -> stop
-                break
+                # Flatten all results from this batch
+                batch_entries = [entry for page in results for entry in page]
 
-            # Sort by ID so we know the highest one 
-            # (or remove if you don't need strict ID ordering).
-            batch_entries.sort(key=lambda x: int(x["id"]))
+                if not batch_entries:
+                    # No more entries -> stop
+                    break
 
-            # Yield the entries one-by-one
-            for entry in batch_entries:
-                yield entry
+                # Sort by ID for consistency
+                batch_entries.sort(key=lambda x: int(x["id"]))
 
-            # Update `start_id` for the next batch 
-            # using the highest ID from this batch
-            last_id = int(batch_entries[-1]["id"])
-            start_id = last_id + 1
+                # Yield the entries one-by-one
+                for entry in batch_entries:
+                    yield entry
+
+                # Update start_id for the next batch
+                last_id = int(batch_entries[-1]["id"])
+                start_id = last_id + 1
+
+        # Create an event loop to run the async generator in a blocking way
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            async_gen = async_generator()
+            while True:
+                yield loop.run_until_complete(async_gen.__anext__())
+        except StopAsyncIteration:
+            pass
+        finally:
+            loop.close()
 
     def close(self):
         logger.debug("Closing sync client.")
