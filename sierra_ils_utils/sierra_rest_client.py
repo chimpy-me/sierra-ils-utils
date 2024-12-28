@@ -181,7 +181,7 @@ class SierraRESTClient:
         async def __async_generator():
             nonlocal start_id
             while True:
-                # create tasks to fetch pages concurrently
+                # Create tasks to fetch pages concurrently
                 tasks = [
                     self._fetch_page_async(
                         endpoint,
@@ -192,7 +192,7 @@ class SierraRESTClient:
                     for i in range(concurrency)
                 ]
 
-                # gather results from all tasks
+                # Gather results from all tasks
                 results = await asyncio.gather(*tasks)
                 batch_entries = [
                     entry
@@ -202,15 +202,15 @@ class SierraRESTClient:
                 ]
 
                 if not batch_entries:
-                    break  # no more data => we stop
+                    break  # No more data => we stop
 
                 # Add new IDs to the set
                 fetched_ids.update(entry["id"] for entry in batch_entries)
 
-                # sort by ID for consistency
+                # Sort by ID for consistency
                 batch_entries.sort(key=lambda x: int(x["id"]))
 
-                # put items into the queue
+                # Put items into the queue
                 for entry in batch_entries:
                     q.put(entry)
 
@@ -218,35 +218,30 @@ class SierraRESTClient:
                 last_id = int(batch_entries[-1]["id"])
                 start_id = last_id + 1
 
-        def __worker_thread():
-            """
-            This function runs in a separate thread,
-            with its own event loop.
-            """
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                # Use an async function to consume the async generator
-                async def __consume_generator():
-                    await __async_generator()
+            q.put(SENTINEL)  # Signal the end of data
 
-                # Run the async function
-                loop.run_until_complete(__consume_generator())
-            finally:
-                # Push sentinel to indicate the end of data
-                q.put(SENTINEL)
-                loop.close()
+        def __worker_thread(loop):
+            """
+            This function runs in a separate thread and uses the main thread's
+            asyncio event loop.
+            """
+            asyncio.set_event_loop(loop)  # Use the provided event loop
+            loop.run_until_complete(__async_generator())
+
+        # Use the main thread's event loop
+        loop = asyncio.get_event_loop()
 
         # Start the background thread
-        t = threading.Thread(target=__worker_thread, daemon=True)
+        t = threading.Thread(target=__worker_thread, args=(loop,), daemon=True)
         t.start()
 
         # Yield items from the queue, blocking in the main thread
         while True:
-            item = q.get()  # block until next item or sentinel
+            item = q.get()  # Block until the next item or sentinel
             if item is SENTINEL:
                 break
             yield item
+
 
     def close(self):
         self._sync_client.close()
