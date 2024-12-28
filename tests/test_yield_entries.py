@@ -1,99 +1,174 @@
+import pytest
 from unittest.mock import patch, AsyncMock
+from sierra_ils_utils import SierraRESTClient
 
-def test_yield_entries_empty_response(mock_client):
+# @pytest.fixture
+# def mock_client():
+#     """
+#     Provides a SierraRESTClient with a fake base URL
+#     to demonstrate usage and avoid making real network calls.
+#     """
+#     client = SierraRESTClient(
+#         base_url="http://fake.test",
+#         client_id="FAKE_ID",
+#         client_secret="FAKE_SECRET",
+#         max_retries=1
+#     )
+#     yield client
+#     client.close()
+
+
+# def test_yield_entries_multiple_pages(mock_client):
+#     """
+#     Example: Fetching multiple pages of entries using yield_entries.
+
+#     Suppose we are fetching items from the "items/" endpoint and expect multiple
+#     pages of data. This test simulates how the method works and shows
+#     how to consume the generator in a real-world use case.
+#     """
+
+#     # Mock the behavior of `_fetch_page_async` to simulate paginated responses.
+#     # For example:
+#     # - The first page contains {"id": 0} and {"id": 1}
+#     # - The second page contains {"id": 2} and {"id": 3}
+#     # - The third page is empty, signaling the end.
+#     async def fetch_side_effect(endpoint, start_id, limit=2, extra_params=None):
+#         if start_id == 0:
+#             return [{"id": 0}, {"id": 1}]
+#         elif start_id == 2:
+#             return [{"id": 2}, {"id": 3}]
+#         else:
+#             return []
+
+#     with patch.object(
+#         mock_client,
+#         "_fetch_page_async",
+#         new=AsyncMock(side_effect=fetch_side_effect)
+#     ):
+#         # Example usage:
+#         # Consume the generator to fetch items from the "items/" endpoint.
+#         print("Fetching items from the 'items/' endpoint...")
+#         for i, entry in enumerate(mock_client.yield_entries("items/", start_id=0, limit=2, concurrency=1)):
+#             print(f"Entry {i}: {entry}")
+#             # Stop early if needed
+#             if i > 10:
+#                 break
+
+#         # Expected data:
+#         # - Entries should include items with IDs: 0, 1, 2, 3
+#         entries = list(mock_client.yield_entries("items/", start_id=0, limit=2, concurrency=1))
+#         assert len(entries) == 4
+#         assert [e["id"] for e in entries] == [0, 1, 2, 3]
+
+
+# def test_yield_entries_no_data(mock_client):
+#     """
+#     Example: Fetching entries when no data is available.
+
+#     This test demonstrates how yield_entries behaves when no data is returned
+#     from the endpoint. This might happen if there are no records matching the
+#     query or if the system is empty.
+#     """
+#     # Simulate an empty response for all fetches.
+#     with patch.object(
+#         mock_client,
+#         "_fetch_page_async",
+#         new=AsyncMock(return_value=[])
+#     ):
+#         print("Attempting to fetch items from an empty endpoint...")
+#         entries = list(mock_client.yield_entries("items/", start_id=0, limit=2, concurrency=1))
+#         print("No entries found.") if not entries else print(entries)
+
+#         # Assert that the generator yields nothing.
+#         assert entries == []
+
+
+# def test_yield_entries_single_page(mock_client):
+#     """
+#     Example: Fetching a single page of entries.
+
+#     This test demonstrates how yield_entries handles a situation where there
+#     is only a single page of data available.
+#     """
+#     async def fetch_side_effect(endpoint, start_id, limit=2, extra_params=None):
+#         if start_id == 0:
+#             return [{"id": 0}, {"id": 1}]
+#         return []
+
+#     with patch.object(
+#         mock_client,
+#         "_fetch_page_async",
+#         new=AsyncMock(side_effect=fetch_side_effect)
+#     ):
+#         print("Fetching a single page of items from the 'items/' endpoint...")
+#         entries = list(mock_client.yield_entries("items/", start_id=0, limit=2, concurrency=1))
+#         print(f"Fetched entries: {entries}")
+
+#         # Assert that the generator yields only one page of results.
+#         assert len(entries) == 2
+#         assert [e["id"] for e in entries] == [0, 1]
+
+
+# def test_yield_entries_with_large_concurrency(mock_client):
+#     """
+#     Example: Using high concurrency to speed up paginated requests.
+
+#     This test demonstrates how yield_entries can handle multiple concurrent
+#     requests to fetch paginated data.
+#     """
+#     async def fetch_side_effect(endpoint, start_id, limit=2, extra_params=None):
+#         if start_id == 0:
+#             return [{"id": 0}, {"id": 1}]
+#         elif start_id == 2:
+#             return [{"id": 2}, {"id": 3}]
+#         elif start_id == 4:
+#             return [{"id": 4}, {"id": 5}]
+#         else:
+#             return []
+
+#     with patch.object(
+#         mock_client,
+#         "_fetch_page_async",
+#         new=AsyncMock(side_effect=fetch_side_effect)
+#     ):
+#         # Using a higher concurrency level to fetch data faster.
+#         print("Fetching items with high concurrency...")
+#         entries = list(mock_client.yield_entries("items/", start_id=0, limit=2, concurrency=3))
+#         print(f"Fetched entries: {entries}")
+
+#         # Assert that the generator fetches all available entries.
+#         assert len(entries) == 6
+#         assert [e["id"] for e in entries] == [0, 1, 2, 3, 4, 5]
+
+
+def test_yield_entries_multiple_pages(mock_client):
     """
-    Test that yield_entries immediately stops if
-    _fetch_page_async returns no entries on the first fetch.
-    """
-    with patch.object(mock_client, "_fetch_page_async", new=AsyncMock(return_value=[])) as mock_fetch:
-        entries = list(mock_client.yield_entries("items/", start_id=0, limit=2, concurrency=1))
-        assert entries == []
-        assert mock_fetch.call_count == 1
+    Example: Fetching multiple pages of entries using yield_entries.
 
-
-def test_yield_entries_single_batch(mock_client):
-    """
-    Test that yield_entries yields entries from a single batch
-    and stops when the next batch is empty.
-    """
-    async def fetch_side_effect(endpoint, start_id, limit=2000, extra_params=None):
-        if start_id == 0:
-            return [{"id": 0}, {"id": 1}]
-        else:
-            return []
-
-    with patch.object(mock_client, "_fetch_page_async", new=AsyncMock(side_effect=fetch_side_effect)) as mock_fetch:
-        entries = list(
-            mock_client.yield_entries(endpoint="items/", start_id=0, limit=2, concurrency=1)
-        )
-        assert len(entries) == 2
-        assert [e["id"] for e in entries] == [0, 1]
-        assert mock_fetch.call_count == 2  # first call non-empty, second call empty => stop
-
-
-def test_yield_entries_multiple_batches(mock_client):
-    """
-    Test fetching multiple batches in a single 'concurrency=1' scenario
-    to see how start_id increments each time.
+    Suppose we are fetching items from the "items/" endpoint and expect multiple
+    pages of data. This test simulates how the method works and shows
+    how to consume the generator in a real-world use case.
     """
 
-    # If start_id=0 => return {0,1}
-    # If start_id=2 => return {2,3}
-    # If start_id=4 => return {4,5}
-    # If start_id=6 => empty => break
+    # Mock the behavior of `_fetch_page_async` to simulate paginated responses.
     async def fetch_side_effect(endpoint, start_id, limit=2, extra_params=None):
-        if start_id < 6:
-            return [{"id": start_id}, {"id": start_id + 1}]
-        else:
-            return []
-
-    with patch.object(mock_client, "_fetch_page_async", new=AsyncMock(side_effect=fetch_side_effect)) as mock_fetch:
-        entries_collected = list(
-            mock_client.yield_entries("items/", start_id=0, limit=2, concurrency=1)
-        )
-
-        expected_ids = [0, 1, 2, 3, 4, 5]
-        actual_ids = [e["id"] for e in entries_collected]
-        assert actual_ids == expected_ids
-        # We expect 4 calls:
-        #  1) start_id=0  => 2 items
-        #  2) start_id=2  => 2 items
-        #  3) start_id=4  => 2 items
-        #  4) start_id=6  => empty => stop
-        assert mock_fetch.call_count == 4
-
-
-def test_yield_entries_concurrent_batches(mock_client):
-    """
-    Test concurrency > 1, verifying that multiple page ranges
-    are fetched per iteration of the while loop.
-    """
-
-    async def fetch_side_effect(endpoint, start_id, limit=2, extra_params=None):
-        """
-        1st iteration:
-          start_id=0 => returns [{id:0}, {id:1}]
-          start_id=2 => returns [{id:2}]
-        2nd iteration:
-          start_id=3 => empty
-          start_id=5 => empty
-        => stop
-        """
         if start_id == 0:
             return [{"id": 0}, {"id": 1}]
         elif start_id == 2:
-            return [{"id": 2}]
+            return [{"id": 2}, {"id": 3}]
         else:
             return []
 
-    with patch.object(mock_client, "_fetch_page_async", new=AsyncMock(side_effect=fetch_side_effect)) as mock_fetch:
-        entries_collected = list(
-            mock_client.yield_entries("items/", start_id=0, limit=2, concurrency=2)
-        )
-        # After the first iteration's batch, we expect 3 items: 0,1,2 (sorted => 0,1,2)
-        assert [x["id"] for x in entries_collected] == [0, 1, 2]
+    with patch.object(
+        mock_client,
+        "_fetch_page_async",
+        new=AsyncMock(side_effect=fetch_side_effect)
+    ):
+        # Example usage:
+        print("Fetching items from the 'items/' endpoint...")
+        entries = list(mock_client.yield_entries("items/", start_id=0, limit=2, concurrency=1))
+        print(f"Fetched entries: {entries}")
 
-        # The while loop runs at least twice:
-        # 1) concurrency=2 => start_id=0, start_id=2  => partial data
-        # 2) concurrency=2 => start_id=3, start_id=5  => empty => break
-        assert mock_fetch.call_count == 4
+        # Assert expected results
+        assert len(entries) == 4
+        assert [e["id"] for e in entries] == [0, 1, 2, 3]

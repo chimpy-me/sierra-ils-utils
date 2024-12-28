@@ -1,46 +1,20 @@
-import httpx
 import asyncio
+import httpx
+import logging
+import queue
 import threading
 import time
-import logging
 
-# get a module-level logger
+# Set up a module-level logger
 logger = logging.getLogger(__name__)
 
 class SierraRESTClient:
     """
-    AKA: SierraAPI
-    
     A client for interacting with the Sierra REST API, supporting both
     synchronous and asynchronous operations.
 
     This class provides methods for making authenticated HTTP requests to the 
-    Sierra REST API:
-    
-        - request(self, method, url, *args, **kwargs)
-            Makes a synchronous (blocking) HTTP request to the API
-        
-        - async_request(self, method, url, *args, **kwargs)
-            Makes an asynchronous (non-blocking) HTTP request to the API
-    
-    These methods handle token-based authentication using client credentials
-    and automatically obtains and refreshes tokens as needed.
-    
-    Example Uses:
-    
-        ```
-        client = SierraRESTClient(
-            base_url='https://catalog.library.org/iii/sierra-api/v6/', 
-            client_id='CLIENT_ID_HERE',
-            client_secret='CLIENT_SECRET_HERE'
-        )
-        
-        # Synchronous request example
-        response = client.request('GET', 'info/token')
-        
-        # Asynchronous request example
-        response = await client.async_request('GET', 'info/token')
-        ```
+    Sierra REST API and handles token-based authentication using client credentials.
     """
     def __init__(
         self, 
@@ -62,15 +36,13 @@ class SierraRESTClient:
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
 
-        # Initialize clients with base_url 
-        # (one for synchronous/blocking requests)
+        # Initialize HTTP clients
         self._sync_client = httpx.Client(
             base_url=base_url, 
             timeout=timeout,
             *args, 
             **kwargs
         )
-        # (and one for asynchronous/non-blocking requests)
         self._async_client = httpx.AsyncClient(
             base_url=base_url,
             timeout=httpx.Timeout(timeout),
@@ -80,10 +52,9 @@ class SierraRESTClient:
 
         logger.debug("SierraRESTClient initialized...")
         logger.debug(
-            "base_url=%s, sierra_api_key=%s, max_retries=%d, backoff_factor=%.2f, timeout=%.2f",
+            "base_url=%s, client_id=%s, max_retries=%d, backoff_factor=%.2f, timeout=%.2f",
             base_url, client_id, max_retries, backoff_factor, timeout
         )
-        
 
     def _get_new_token_sync(self):
         with self._thread_lock:
@@ -119,287 +90,115 @@ class SierraRESTClient:
             self.token_expiry = time.time() + token_data.get("expires_in", 3600)
             logger.info("Async token fetched. Expires at %f", self.token_expiry)
 
-
     def _ensure_valid_token_sync(self):
-        logger.debug("Ensuring sync token validity.")
         if not self.access_token or time.time() >= self.token_expiry:
             self._get_new_token_sync()
 
-
     async def _ensure_valid_token_async(self):
-        logger.debug("Ensuring async token validity.")
         if not self.access_token or time.time() >= self.token_expiry:
             await self._get_new_token_async()
 
-    
-    def request(
-        self, 
-        method, 
-        url, 
-        *args, 
-        retries=None, 
-        backoff_factor=None, 
-        **kwargs
-    ):
-        """
-        For making a synchronous (blocking) request with retry and backoff logic,
-        including handling of transient 5xx errors.
-        """
+    def request(self, method, url, *args, retries=None, backoff_factor=None, **kwargs):
         retries = retries or self.max_retries
         backoff_factor = backoff_factor or self.backoff_factor
 
         for attempt in range(retries):
             try:
                 self._ensure_valid_token_sync()
-
-                # Add the Authorization header explicitly for clarity:
                 kwargs.setdefault("headers", {})
                 kwargs["headers"]["Authorization"] = f"Bearer {self.access_token}"
 
-                logger.debug(
-                    "Sync request attempt %d/%d: %s %s [token=%s]",
-                    attempt + 1,
-                    retries,
-                    method,
-                    url,
-                    self.access_token[:8] + "..." if self.access_token else None
-                )
-
                 response = self._sync_client.request(method, url, *args, **kwargs)
-
-                # Check for 401 => possibly refresh token and retry once
                 if response.status_code == 401:
-                    logger.warning("Got 401 on sync request. Refreshing token and retrying.")
                     self._get_new_token_sync()
                     kwargs["headers"]["Authorization"] = f"Bearer {self.access_token}"
                     response = self._sync_client.request(method, url, *args, **kwargs)
-                    if response.status_code == 401:
-                        logger.error("Still 401 after token refresh. Returning response.")
-                        return response
 
-                # Check if it's a 5xx transient error
-                if 500 <= response.status_code < 600:
+                if response.status_code >= 500:
                     if attempt < retries - 1:
-                        backoff_time = backoff_factor * (2 ** attempt)
-                        logger.warning(
-                            "Sync request got %d on attempt %d. Retrying in %.2f seconds...",
-                            response.status_code, attempt + 1, backoff_time
-                        )
-                        time.sleep(backoff_time)
+                        time.sleep(backoff_factor * (2 ** attempt))
                         continue
-                    else:
-                        logger.error(
-                            "Sync request got %d on final attempt; returning response.",
-                            response.status_code
-                        )
-                        return response
-
-                # For any other code (including 2xx, 3xx, or other 4xx) return
                 return response
 
-            except (httpx.ReadTimeout, httpx.ConnectTimeout) as exc:
-                logger.warning("Timeout on sync attempt %d/%d: %s", attempt + 1, retries, str(exc))
-                if attempt < retries - 1:
-                    backoff_time = backoff_factor * (2 ** attempt)
-                    logger.debug("Retrying in %.2f seconds...", backoff_time)
-                    time.sleep(backoff_time)
-                else:
-                    logger.error("Maximum sync retries reached. Raising exception.")
+            except (httpx.ReadTimeout, httpx.ConnectTimeout):
+                if attempt >= retries - 1:
                     raise
 
-    async def async_request(
-        self, 
-        method, 
-        url, 
-        *args, 
-        retries=None, 
-        backoff_factor=None, 
-        **kwargs
-    ):
-        """
-        For making an asynchronous request with retry and backoff logic,
-        including handling of transient 5xx errors.
-        """
+    async def async_request(self, method, url, *args, retries=None, backoff_factor=None, **kwargs):
         retries = retries or self.max_retries
         backoff_factor = backoff_factor or self.backoff_factor
 
         await self._ensure_valid_token_async()
-
-        # Always add the Authorization header explicitly for clarity
         kwargs.setdefault("headers", {})
         kwargs["headers"]["Authorization"] = f"Bearer {self.access_token}"
 
         for attempt in range(retries):
             try:
-                logger.debug(
-                    "Async request attempt %d/%d: %s %s [token=%s]",
-                    attempt + 1,
-                    retries,
-                    method,
-                    url,
-                    self.access_token[:8] + "..." if self.access_token else None
-                )
                 response = await self._async_client.request(method, url, *args, **kwargs)
-
-                # -- Handle 401 (Unauthorized) --
                 if response.status_code == 401:
-                    logger.warning("Got 401 on async request. Refreshing token and retrying.")
                     await self._get_new_token_async()
                     kwargs["headers"]["Authorization"] = f"Bearer {self.access_token}"
                     response = await self._async_client.request(method, url, *args, **kwargs)
-                    if response.status_code == 401:
-                        logger.error("Still 401 after async token refresh. Returning response.")
-                        return response
 
-                # -- Handle 5xx (transient server errors) --
-                if 500 <= response.status_code < 600:
+                if response.status_code >= 500:
                     if attempt < retries - 1:
-                        backoff_time = backoff_factor * (2 ** attempt)
-                        logger.warning(
-                            "Async request got %d on attempt %d. Retrying in %.2f seconds...",
-                            response.status_code, attempt + 1, backoff_time
-                        )
-                        await asyncio.sleep(backoff_time)
+                        await asyncio.sleep(backoff_factor * (2 ** attempt))
                         continue
-                    else:
-                        logger.error(
-                            "Async request got %d on final attempt; returning response.",
-                            response.status_code
-                        )
-                        return response
-
-                # If it's not a 401 that we can fix or a 5xx we want to retry,
-                # return the response immediately.
                 return response
 
-            except (httpx.ReadTimeout, httpx.ConnectTimeout) as exc:
-                logger.warning("Timeout on async attempt %d/%d: %s", attempt + 1, retries, str(exc))
-                if attempt < retries - 1:
-                    backoff_time = backoff_factor * (2 ** attempt)
-                    logger.debug("Retrying async request in %.2f seconds...", backoff_time)
-                    await asyncio.sleep(backoff_time)
-                else:
-                    logger.error("Maximum async retries reached. Raising exception.")
+            except (httpx.ReadTimeout, httpx.ConnectTimeout):
+                if attempt >= retries - 1:
                     raise
 
-            except asyncio.CancelledError:
-                logger.warning("Async request cancelled.")
-                raise
+    async def _fetch_page_async(self, endpoint, start_id, limit=2000, extra_params=None):
+        extra_params = extra_params or {}
+        params = {"id": f"[{start_id},]", "limit": limit, **extra_params}
+        response = await self.async_request("GET", endpoint, params=params)
+        return response.json().get("entries", [])
 
-    async def _fetch_page_async(
-        self,
-        endpoint,
-        start_id,
-        limit=2000,
-        extra_params=None
-    ):
-        """
-        Helper function for `async_yield_entries`
-        
-        Fetch a single page of results using an 'open range' starting at 
-        `start_id`
+    def yield_entries(self, endpoint, start_id=0, limit=2000, concurrency=10, params=None):
+        params = params or {}
+        q = queue.Queue()
+        SENTINEL = object()
 
-        Returns a list of 'entries' on success, or an empty list if none found
-        """
-        if extra_params is None:
-            extra_params = {}
-        params = {
-            "id": f"[{start_id},]",  # e.g. '[0,]' means "from ID=0 up to ???"
-            "limit": limit,
-            **extra_params
-        }
-        response = await self.async_request(
-            "GET",
-            endpoint, 
-            params=params
-        )
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("entries", [])
-        else:
-            logger.warning(
-                "Page fetch returned status %s: %s", 
-                response.status_code, 
-                response.text
-            )
-            return []
-        
-    def yield_entries(
-        self, 
-        endpoint, 
-        start_id=0, 
-        limit=2000, 
-        concurrency=10, 
-        params={}
-    ):
-        """
-        Synchronous generator for streaming all records from the specified
-        endpoint beginning at `start_id`.
-        
-        This uses concurrent 'page fetches' to speed things up:
-          - concurrency=N => fetch up to N pages at once.
-          
-        Yields individual entries (one at a time) so you can consume them 
-        in a streaming fashion.
-        
-        Args:
-            endpoint (str): API endpoint (e.g., 'items/' or 'patrons/')
-            start_id (int): Starting ID to fetch from.
-            limit (int): Number of records per page.
-            concurrency (int): Number of concurrent requests per batch.
-            extra_params (dict): Optional extra query parameters.
-
-        Yields:
-            dict: A single API record (entry).
-        """
-
-        async def async_generator():
-            # Internal async generator to fetch entries using async logic
+        async def __async_generator():
             nonlocal start_id
-
             while True:
-                tasks = []
-                for i in range(concurrency):
-                    page_start_id = start_id + (i * limit)
-                    tasks.append(self._fetch_page_async(endpoint, page_start_id, limit, params))
-
-                # Run the tasks concurrently and gather results
+                tasks = [
+                    self._fetch_page_async(endpoint, start_id + (i * limit), limit, params)
+                    for i in range(concurrency)
+                ]
                 results = await asyncio.gather(*tasks)
-
-                # Flatten all results from this batch
-                batch_entries = [entry for page in results for entry in page]
+                batch_entries = [entry for page_entries in results for entry in page_entries]
 
                 if not batch_entries:
-                    # No more entries -> stop
                     break
 
-                # Sort by ID for consistency
                 batch_entries.sort(key=lambda x: int(x["id"]))
-
-                # Yield the entries one-by-one
                 for entry in batch_entries:
-                    yield entry
+                    q.put(entry)
 
-                # Update start_id for the next batch
-                last_id = int(batch_entries[-1]["id"])
-                start_id = last_id + 1
+                start_id = int(batch_entries[-1]["id"]) + 1
 
-        # Create an event loop to run the async generator in a blocking way
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            async_gen = async_generator()
-            while True:
-                yield loop.run_until_complete(async_gen.__anext__())
-        except StopAsyncIteration:
-            pass
-        finally:
-            loop.close()
+        def __worker_thread():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(__async_generator())
+            finally:
+                q.put(SENTINEL)
+                loop.close()
+
+        threading.Thread(target=__worker_thread, daemon=True).start()
+
+        while True:
+            item = q.get()
+            if item is SENTINEL:
+                break
+            yield item
 
     def close(self):
-        logger.debug("Closing sync client.")
         self._sync_client.close()
 
     async def aclose(self):
-        logger.debug("Closing async client.")
         await self._async_client.aclose()
