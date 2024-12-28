@@ -27,7 +27,7 @@ def test_yield_entries_multiple_pages(mock_client):
     ):
         # Example usage:
         print("Fetching items from the 'items/' endpoint...")
-        entries = list(mock_client.yield_entries("items/", start_id=0, limit=2, concurrency=1))
+        entries = list(mock_client.yield_entries("items/", start_id=0, limit=2))
         print(f"Fetched entries: {entries}")
 
         # Assert expected results

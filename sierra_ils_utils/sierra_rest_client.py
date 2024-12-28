@@ -161,86 +161,83 @@ class SierraRESTClient:
         endpoint,
         start_id=0,
         limit=2000,
-        concurrency=10,
+        batch_size=10,
         params=None,
     ):
         """
-        Synchronous generator that yields items from `endpoint` while
-        internally using async concurrency in a separate thread.
+        Synchronous generator that yields items from `endpoint`, fetching
+        records in batches using async concurrency in a separate thread.
         """
         if params is None:
             params = {}
 
         # A queue for transferring items from the worker thread to the main thread
         q = queue.Queue()
-        SENTINEL = object()  # a unique marker to signal 'no more entries'
+        SENTINEL = object()  # A unique marker to signal 'no more entries'
 
-        # Keep track of fetched IDs to prevent duplicates
-        fetched_ids = set()
-
-        async def __async_generator():
+        async def __fetch_and_queue():
+            """
+            Async function that fetches records in batches and queues them.
+            """
             nonlocal start_id
             while True:
-                # Create tasks to fetch pages concurrently
+                # Create tasks for a batch of concurrent requests
                 tasks = [
                     self._fetch_page_async(
                         endpoint,
                         start_id + (i * limit),
                         limit,
-                        params,
+                        extra_params=params,
                     )
-                    for i in range(concurrency)
+                    for i in range(batch_size)
                 ]
 
-                # Gather results from all tasks
+                # Run all tasks concurrently and gather results
                 results = await asyncio.gather(*tasks)
-                batch_entries = [
-                    entry
-                    for page_entries in results
-                    for entry in page_entries
-                    if entry["id"] not in fetched_ids  # Avoid duplicates
+
+                # Flatten all results into a single batch
+                current_batch = [
+                    record for page in results if page for record in page
                 ]
 
-                if not batch_entries:
-                    break  # No more data => we stop
+                if not current_batch:
+                    # No more records, signal the end
+                    q.put(SENTINEL)
+                    break
 
-                # Add new IDs to the set
-                fetched_ids.update(entry["id"] for entry in batch_entries)
+                # Sort the batch by ID for consistency
+                current_batch.sort(key=lambda x: int(x["id"]))
 
-                # Sort by ID for consistency
-                batch_entries.sort(key=lambda x: int(x["id"]))
+                # Enqueue records for processing
+                for record in current_batch:
+                    q.put(record)
 
-                # Put items into the queue
-                for entry in batch_entries:
-                    q.put(entry)
+                # Update `start_id` to the highest ID in the current batch
+                last_record_id = int(current_batch[-1]["id"])
+                start_id = last_record_id + 1
 
-                # Increment start_id to the next page
-                last_id = int(batch_entries[-1]["id"])
-                start_id = last_id + 1
-
-            q.put(SENTINEL)  # Signal the end of data
-
-        def __worker_thread(loop):
+        def __worker_thread():
             """
-            This function runs in a separate thread and uses the main thread's
-            asyncio event loop.
+            Worker thread to run the async fetcher.
             """
-            asyncio.set_event_loop(loop)  # Use the provided event loop
-            loop.run_until_complete(__async_generator())
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(__fetch_and_queue())
+            finally:
+                loop.close()
 
-        # Use the main thread's event loop
-        loop = asyncio.get_event_loop()
-
-        # Start the background thread
-        t = threading.Thread(target=__worker_thread, args=(loop,), daemon=True)
+        # Start the worker thread
+        t = threading.Thread(target=__worker_thread, daemon=True)
         t.start()
 
         # Yield items from the queue, blocking in the main thread
         while True:
-            item = q.get()  # Block until the next item or sentinel
+            item = q.get()  # Block until next item or sentinel
             if item is SENTINEL:
                 break
             yield item
+
 
 
     def close(self):
