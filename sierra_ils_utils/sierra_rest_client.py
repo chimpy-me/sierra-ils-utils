@@ -121,13 +121,13 @@ class SierraRESTClient:
 
 
     def _ensure_valid_token_sync(self):
-        logger.debug("Ensuring sync token validity.")
+        logger.debug("_ensure_valid_token_sync()")
         if not self.access_token or time.time() >= self.token_expiry:
             self._get_new_token_sync()
 
 
     async def _ensure_valid_token_async(self):
-        logger.debug("Ensuring async token validity.")
+        logger.debug("_ensure_valid_token_async()")
         if not self.access_token or time.time() >= self.token_expiry:
             await self._get_new_token_async()
 
