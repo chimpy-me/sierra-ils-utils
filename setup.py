@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sierra-ils-utils",
-    version="0.0.1a20241226",
+    version="0.0.1a20250126",
     packages=find_packages(),
     install_requires=[
         "httpx>=0.28.0,<0.29.0",
