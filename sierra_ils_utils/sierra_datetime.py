@@ -5,15 +5,10 @@ from zoneinfo import ZoneInfo
 class SierraDateTime(datetime):
     """A thin wrapper around datetime that ensures Sierra API-compatible formatting."""
 
-    def __new__(cls, *args, tzinfo=None, **kwargs):
+    def __new__(cls, *args, **kwargs):
         """Ensure that the datetime is always timezone-aware (defaults to UTC) and microseconds are removed."""
-        if 'tzinfo' in kwargs:
-            tzinfo = kwargs.pop('tzinfo') or tzinfo
-        if tzinfo is None:
-            tzinfo = timezone.utc  # Default to UTC if no timezone is provided
-
-        instance = super().__new__(cls, *args, tzinfo=tzinfo, **kwargs)
-        return instance.astimezone(timezone.utc).replace(microsecond=0)
+        instance = super().__new__(cls, *args, **kwargs)
+        return instance.replace(microsecond=0).astimezone(timezone.utc)
 
     def __str__(self):
         """Return the Sierra API-compliant timestamp format."""
@@ -31,7 +26,7 @@ class SierraDateTime(datetime):
     @classmethod
     def from_datetime(cls, dt: datetime):
         """Convert a given datetime object to SierraDateTime, ensuring it's in UTC."""
-        return cls(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, tzinfo=dt.tzinfo or timezone.utc)
+        return super().__new__(cls, dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, tzinfo=timezone.utc)
 
     @classmethod
     def from_iso(cls, iso_string: str):
@@ -82,8 +77,6 @@ class SierraDateTime(datetime):
                     continue
 
         if parsed_dt is None:
-            # Force naive datetime to UTC
-            # parsed_dt = parsed_dt.replace(tzinfo=timezone.utc)
             raise ValueError(f"Could not parse the datetime string: {dt_string}")
 
         # Convert to UTC and return as SierraDateTime
