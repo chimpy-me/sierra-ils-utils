@@ -54,26 +54,41 @@ Some Sierra REST API endpoints expect dates and times in a specific ISO8601-like
 Example Usage:
 
 ```python
-from sierra_ils_utils import SierraDateTime, SierraDate
+from sierra_ils_utils import SierraDateTime
+from datetime import timedelta
 
-# 1) Create a Sierra REST API compatible time string for the current datetime
+# generate a current timestamp for use with the REST API
+datetime_now  = SierraDateTime.now()
+print(datetime_now)  # 2025-01-30T19:31:43Z
 
-# 1) Parse a string with an explicit UTC offset
-dt1 = SierraDateTime.from_string("2020-07-07 08:55:00.000 -0400")
-print(dt1)  # "2020-07-07T12:55:00Z"
+# SierraDateTime is a `datetime` object, so you can use `timedelta` with it
+datetime_prev = datetime_now - timedelta(days=1)
+print(datetime_prev)  # 2025-01-29T19:31:43Z
 
-# 2) Parse a string and specify a named time zone
-dt2 = SierraDateTime.from_string("2025-06-10 18:45:00", "America/New_York")
-print(dt2)  # "2025-06-10T22:45:00Z"
+# date ranges in Sierra REST API look like this:
+# [2025-01-27T19:21:59Z,2025-01-30T19:21:59Z]
+range_string = f"[{datetime_prev},{datetime_now}]"
 
-# 3) Convert an existing Python datetime to a SierraDateTime
-regular_dt = datetime(2025, 6, 10, 18, 45, tzinfo=timezone.utc)
-sdt = SierraDateTime.from_datetime(regular_dt)
-print(sdt)  # "2025-06-10T18:45:00Z"
+# Get a list of items created in the last 1 day
+response = client.request(
+    'GET',
+    'items/',
+    params={
+        'createdDate': range_string,  # using the range from above
+        'limit': 2000
+    }
+)
+response.raise_for_status()  # handle errors
 
-# 4) Work with SierraDate for date-only fields
-sdate = SierraDate.from_iso("2023-08-01")
-print(sdate)  # "2023-08-01"
+print(response.json().get('total', 0))  # 1664
+```
+
+```python
+# You can also use timezones to create dates that are in your local timezone ...
+first_monday_2025 = SierraDateTime.from_string(
+  '2025-01-06 00:00:00', 'America/New_York'
+)
+print(first_monday_2025)  # 2025-01-06T05:00:00Z
 ```
 
 ## License
