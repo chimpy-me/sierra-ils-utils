@@ -91,6 +91,32 @@ first_monday_2025 = SierraDateTime.from_string(
 print(first_monday_2025)  # 2025-01-06T05:00:00Z
 ```
 
+### `get_max_record_id()`
+
+The `get_max_record_id()` utility function finds the maximum valid record ID for which the API returns at least one entry. This is particularly useful for GET endpoints that support retrieving records based on an ID range. It functions by making `GET` requests using exponential and binary search strategies for finding the maximum `id` value for the given record type.
+
+#### Example Use
+
+```python
+from sierra_ils_utils import SierraAPI
+from sierra_ils_utils.utils import get_max_record_id
+
+# Configure the client with the base URL and credentials
+client = SierraAPI(
+    base_url="https://catalog.library.org/iii/sierra-api/v6/",
+    client_id="YOUR_CLIENT_ID",
+    client_secret="YOUR_CLIENT_SECRET"
+)
+
+# Find the maximum valid record ID for the 'patrons/' endpoint
+max_patron_record_id = get_max_record_id(client=client, endpoint='patrons/')
+print("Max Patron Record ID:", max_patron_record_id)  # e.g., 2732296
+
+# Similarly, find the maximum valid record ID for the 'bibs/' endpoint
+max_bib_record_id = get_max_record_id(client, 'bibs/')
+print("Max Bib Record ID:", max_bib_record_id)  # e.g., 3934049
+```
+
 ## License
 
 This project is released under the [MIT License](./LICENSE).
