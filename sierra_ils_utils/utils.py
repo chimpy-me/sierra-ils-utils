@@ -3,7 +3,7 @@ from .sierra_rest_client import SierraRESTClient
 import logging
 from typing import Optional
 
-# get a module-level logger
+# Module-level logger
 logger = logging.getLogger(__name__)
 
 def get_max_record_id(
@@ -20,16 +20,17 @@ def get_max_record_id(
     id range.
 
     Example Use:
-        max_possible_id = get_max_id(client, 'patrons/', start=2_500_000)
-        print("Max valid ID:", max_possible_id)  # 2707822
+        max_possible_id = get_max_record_id(client, 'patrons/', start=2_500_000)
+        print("Max valid ID:", max_possible_id)  # e.g., 2707822
 
     This version handles both cases:
-      - If 'start' is below or around the actual max ID, we do the usual 
-        "exponential (galloping) search upward, then binary search."
-      - If 'start' is above the actual max ID, we do a binary search downward
-        from [0..start].
+      - If 'start' yields entries, we assume it is below (or near) the maximum ID,
+        and we perform an exponential (galloping) search upward to bracket the top,
+        followed by a binary search.
+      - If 'start' does not yield any entries, we perform a downward binary search 
+        in the range [0, start].
 
-    :param client:      A SierraRESTClient (SierraAPI) instance.
+    :param client:      A SierraRESTClient (or SierraAPI) instance.
     :param endpoint:    The GET API endpoint (e.g., 'patrons/').
     :param start:       The initial ID from which to begin searching (default=0).
     :param limit:       The number of items to request per call.
@@ -41,7 +42,7 @@ def get_max_record_id(
 
     def get_entry_count(min_id: int) -> int:
         """
-        Returns how many entries come back for ID >= min_id.
+        Returns how many entries come back for records with ID >= min_id.
         Increments our request counter and logs the request number.
         """
         nonlocal requests_made
@@ -61,9 +62,7 @@ def get_max_record_id(
         response.raise_for_status()
         return len(response.json().get('entries', []))
 
-    # 1) Check if 'start' yields any entries. 
-    #    - If no (==0), we likely overshot. We'll do a downward search [0..start].
-    #    - If yes, do the usual exponential-then-binary search upward.
+    # 1) Check if 'start' yields any entries.
     initial_count = get_entry_count(start)
     logger.debug(f"Initial count at start={start}: {initial_count}")
 
@@ -72,18 +71,14 @@ def get_max_record_id(
         # CASE A: We have entries at 'start' => search upward
         # -----------------------------------------------------
         low = start
-        high = max(start, 1)  # if start=0, at least begin at 1
+        high = max(start, 1)  # ensure we start at least at 1
 
         # 1A) EXPONENTIAL (GALLOPING) SEARCH UPWARD
         while high <= max_safety:
             count = get_entry_count(high)
             logger.debug(f"Exponential up -> low={low}, high={high}, count={count}")
 
-            if count == 0:
-                # Overshot: no entries at 'high'
-                break
-            if count < limit:
-                # Fewer than limit => near the top, break to do binary search
+            if count == 0:  # Only break when no entries are returned
                 break
 
             low = high
@@ -129,10 +124,8 @@ def get_max_record_id(
             logger.debug(f"Binary down -> low={low}, mid={mid}, high={high}, count={count}")
 
             if count == 0:
-                # mid is too high => go lower
                 high = mid - 1
             else:
-                # mid yields results => record mid, go higher (but still below 'start')
                 max_valid = mid
                 low = mid + 1
 
