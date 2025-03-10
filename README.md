@@ -18,7 +18,7 @@ pip install sierra-ils-utils
 ```python
 from sierra_ils_utils import SierraAPI
 
-client = SierraRESTClient(
+client = SierraAPI(
     base_url="https://catalog.library.org/iii/sierra-api/v6/",
     client_id="YOUR_CLIENT_ID",
     client_secret="YOUR_CLIENT_SECRET"
