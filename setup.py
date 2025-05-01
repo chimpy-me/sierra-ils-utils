@@ -2,11 +2,11 @@ from setuptools import setup, find_packages
 
 setup(
     name="sierra-ils-utils",
-    version="0.0.1a20250204",
+    version="0.0.1a20250501",
     packages=find_packages(),
     install_requires=[
-        "httpx>=0.28.0,<0.29.0",
-        "pymarc>=5.2.0,<6.0.0",
+        "httpx>=0.28.1,<0.29.0",
+        "pymarc>=5.2.3,<6.0.0",
     ],
     extras_require={
         "test": ["pytest>=8.3.4","pytest-asyncio>=0.25.0","respx>=0.22.0"],

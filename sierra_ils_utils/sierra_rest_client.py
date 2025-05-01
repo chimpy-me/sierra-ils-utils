@@ -50,6 +50,8 @@ class SierraRESTClient:
         max_retries=3,
         backoff_factor=1.0,
         timeout=30.0,
+        sync_client=None,   # Allow injection of custom clients (e.g. hishel)
+        async_client=None,  # ""
         *args, 
         **kwargs
     ):
@@ -64,14 +66,14 @@ class SierraRESTClient:
 
         # Initialize clients with base_url 
         # (one for synchronous/blocking requests)
-        self._sync_client = httpx.Client(
+        self._sync_client = sync_client or httpx.Client(
             base_url=base_url, 
             timeout=timeout,
             *args, 
             **kwargs
         )
         # (and one for asynchronous/non-blocking requests)
-        self._async_client = httpx.AsyncClient(
+        self._async_client = async_client or httpx.AsyncClient(
             base_url=base_url,
             timeout=httpx.Timeout(timeout),
             *args,
