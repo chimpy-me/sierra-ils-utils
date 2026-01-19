@@ -1,7 +1,7 @@
 # sierra-ils-utils
 
 [![Tests](https://github.com/chimpy-me/sierra-ils-utils/actions/workflows/test.yml/badge.svg)](https://github.com/chimpy-me/sierra-ils-utils/actions/workflows/test.yml)
-[![PyPI version](https://badge.fury.io/py/sierra-ils-utils.svg)](https://badge.fury.io/py/sierra-ils-utils)
+[![PyPI version](https://img.shields.io/pypi/v/sierra-ils-utils)](https://pypi.org/project/sierra-ils-utils/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 A Python wrapper around [HTTPX](https://www.python-httpx.org/) for working with the Sierra ILS REST API.
