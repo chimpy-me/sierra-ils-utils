@@ -1,130 +1,180 @@
 # sierra-ils-utils
 
-**sierra-ils-utils** is a Python library / wrapper around [HTTPX](https://www.python-httpx.org/) -- providing largely the same fully featured HTTP client for Python 3).
+[![Tests](https://github.com/chimpy-me/sierra-ils-utils/actions/workflows/test.yml/badge.svg)](https://github.com/chimpy-me/sierra-ils-utils/actions/workflows/test.yml)
+[![PyPI version](https://badge.fury.io/py/sierra-ils-utils.svg)](https://badge.fury.io/py/sierra-ils-utils)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-The library provides convenient synchronous and asynchronous methods for working with the Sierra ILS REST API. The client provided by the library automatically handles the token-based authentication (client-credentials flow) and includes configurable retry and backoff logic.
+A Python wrapper around [HTTPX](https://www.python-httpx.org/) for working with the Sierra ILS REST API.
 
----
+## Features
+
+- **Sync and async support** - Use `request()` for blocking calls or `async_request()` for async/await
+- **Automatic authentication** - Handles OAuth2 client credentials flow automatically
+- **Token management** - Automatically refreshes tokens when expired or on 401 responses
+- **Retry logic** - Configurable retries with exponential backoff for 5xx errors and timeouts
+- **Context manager support** - Use `with` or `async with` for automatic resource cleanup
+- **Custom client injection** - Inject your own httpx client (e.g., for caching with hishel)
+- **Type hints** - Full type annotations with `py.typed` marker for IDE support
 
 ## Installation
 
 ```bash
-# You can install sierra-ils-utils from PyPI:
+# Install from PyPI
 pip install sierra-ils-utils
+
+# Or with uv
+uv add sierra-ils-utils
 ```
+
+**Requires Python 3.10+**
 
 ## Quick Start
 
 ```python
-from sierra_ils_utils import SierraAPI
+from sierra_ils_utils import SierraRESTClient
 
-client = SierraAPI(
+# Using context manager (recommended)
+with SierraRESTClient(
     base_url="https://catalog.library.org/iii/sierra-api/v6/",
     client_id="YOUR_CLIENT_ID",
     client_secret="YOUR_CLIENT_SECRET"
-)
-
-# Make a synchronous request (returns a httpx.Response)
-response = client.request("GET", "info/token")  # <Response [200 200]>
-response.raise_for_status()
-
-# Or, make an async request (returns a httpx.Response)
-response = await client.async_request("GET", "info/token")  # <Response [200 200]>
-response.raise_for_status()
+) as client:
+    response = client.request("GET", "bibs/", params={"limit": 10})
+    response.raise_for_status()
+    print(response.json())
 ```
 
-The `request()` and `async_request()` client methods will return [httpx.Response](https://www.python-httpx.org/api/#response) objects.
-
-## Other Utilities
-
-### `SierraDateTime` and `SierraDate`
-
-Some Sierra REST API endpoints expect dates and times in a specific ISO8601-like format. The library provides two helpers:
-
-1. `SierraDateTime`: A thin wrapper around Python’s `datetime`, ensuring:
-
-    * timezone-aware date / datetime creation -- defaulting to UTC
-    * microseconds removed
-    * output in ISO 8601 format ending with Z (e.g. `2020-07-07T12:55:00Z`)
-
-2. `SierraDate`: A thin wrapper around Python's `date`, ensuring:
-
-    * output is in YYYY-MM-DD format
-
-Example Usage:
+### Async Usage
 
 ```python
-from sierra_ils_utils import SierraDateTime
+import asyncio
+from sierra_ils_utils import SierraRESTClient
+
+async def main():
+    async with SierraRESTClient(
+        base_url="https://catalog.library.org/iii/sierra-api/v6/",
+        client_id="YOUR_CLIENT_ID",
+        client_secret="YOUR_CLIENT_SECRET"
+    ) as client:
+        response = await client.async_request("GET", "bibs/", params={"limit": 10})
+        response.raise_for_status()
+        print(response.json())
+
+asyncio.run(main())
+```
+
+### Configuration Options
+
+```python
+client = SierraRESTClient(
+    base_url="https://catalog.library.org/iii/sierra-api/v6/",
+    client_id="YOUR_CLIENT_ID",
+    client_secret="YOUR_CLIENT_SECRET",
+    max_retries=3,        # Number of retries for 5xx errors (default: 3)
+    backoff_factor=1.0,   # Exponential backoff multiplier (default: 1.0)
+    timeout=30.0,         # Request timeout in seconds (default: 30.0)
+)
+```
+
+### Custom Client Injection
+
+You can inject a custom httpx client for advanced use cases like caching:
+
+```python
+import httpx
+from sierra_ils_utils import SierraRESTClient
+
+# Example: custom client with different timeout
+custom_client = httpx.Client(
+    base_url="https://catalog.library.org/iii/sierra-api/v6/",
+    timeout=60.0
+)
+
+client = SierraRESTClient(
+    base_url="https://catalog.library.org/iii/sierra-api/v6/",
+    client_id="YOUR_CLIENT_ID",
+    client_secret="YOUR_CLIENT_SECRET",
+    sync_client=custom_client  # or async_client for async
+)
+```
+
+## Utilities
+
+### SierraDateTime and SierraDate
+
+Helpers for Sierra API-compatible date formatting:
+
+```python
+from sierra_ils_utils import SierraDateTime, SierraDate
 from datetime import timedelta
 
-# generate a current timestamp for use with the REST API
-datetime_now  = SierraDateTime.now()
-print(datetime_now)  # 2025-01-30T19:31:43Z
+# Current timestamp in Sierra format
+now = SierraDateTime.now()
+print(now)  # 2025-01-30T19:31:43Z
 
-# SierraDateTime is a `datetime` object, so you can use `timedelta` with it
-datetime_prev = datetime_now - timedelta(days=1)
-print(datetime_prev)  # 2025-01-29T19:31:43Z
+# Date arithmetic works
+yesterday = now - timedelta(days=1)
 
-# date ranges in Sierra REST API look like this:
-# [2025-01-27T19:21:59Z,2025-01-30T19:21:59Z]
-range_string = f"[{datetime_prev},{datetime_now}]"
+# Create date ranges for API queries
+date_range = f"[{yesterday},{now}]"
 
-# Get a list of items created in the last 1 day
+# Query items created in the last day
 response = client.request(
-    'GET',
-    'items/',
-    params={
-        'createdDate': range_string,  # using the range from above
-        'limit': 2000
-    }
+    "GET", "items/",
+    params={"createdDate": date_range, "limit": 2000}
 )
-response.raise_for_status()  # handle errors
-
-print(response.json().get('total', 0))  # 1664
 ```
 
+### Timezone Support
+
 ```python
-# You can also use timezones to create dates that are in your local timezone ...
-first_monday_2025 = SierraDateTime.from_string(
-  '2025-01-06 00:00:00', 'America/New_York'
-)
-print(first_monday_2025)  # 2025-01-06T05:00:00Z
+# Parse dates with timezone conversion
+dt = SierraDateTime.from_string('2025-01-06 00:00:00', 'America/New_York')
+print(dt)  # 2025-01-06T05:00:00Z (converted to UTC)
 ```
 
-### `get_max_record_id()`
+### get_max_record_id()
 
-The `get_max_record_id()` utility function finds the maximum valid record ID for which the API returns at least one entry. This is particularly useful for GET endpoints that support retrieving records based on an ID range. It functions by making `GET` requests using exponential and binary search strategies for finding the maximum `id` value for the given record type.
-
-#### Example Use
+Find the maximum valid record ID using efficient binary search:
 
 ```python
-from sierra_ils_utils import SierraAPI
-from sierra_ils_utils.utils import get_max_record_id
+from sierra_ils_utils import SierraRESTClient, get_max_record_id
 
-# Configure the client with the base URL and credentials
-client = SierraAPI(
-    base_url="https://catalog.library.org/iii/sierra-api/v6/",
-    client_id="YOUR_CLIENT_ID",
-    client_secret="YOUR_CLIENT_SECRET"
-)
+with SierraRESTClient(...) as client:
+    max_bib_id = get_max_record_id(client, "bibs/")
+    print(f"Max bib ID: {max_bib_id}")  # e.g., 3934049
+```
 
-# Find the maximum valid record ID for the 'patrons/' endpoint
-max_patron_record_id = get_max_record_id(client=client, endpoint='patrons/')
-print("Max Patron Record ID:", max_patron_record_id)  # e.g., 2732296
+## Development
 
-# Similarly, find the maximum valid record ID for the 'bibs/' endpoint
-max_bib_record_id = get_max_record_id(client, 'bibs/')
-print("Max Bib Record ID:", max_bib_record_id)  # e.g., 3934049
+```bash
+# Clone and install
+git clone https://github.com/chimpy-me/sierra-ils-utils.git
+cd sierra-ils-utils
+uv sync --all-extras
+
+# Run tests
+uv run pytest
+
+# Run tests with coverage
+uv run pytest -v
+```
+
+## Version
+
+```python
+from sierra_ils_utils import __version__
+print(__version__)  # 0.1.0
 ```
 
 ## License
 
 This project is released under the [MIT License](./LICENSE).
 
-## Authors
+## Author
 
 Ray Voelker – [ray.voelker@gmail.com](mailto:ray.voelker@gmail.com)
 
-## Issues and Support
+## Contributing
 
-Please open an issue on GitHub if you encounter problems, bugs, or have feature requests. We welcome all contributions and feedback!
+Issues and pull requests welcome at [GitHub](https://github.com/chimpy-me/sierra-ils-utils).

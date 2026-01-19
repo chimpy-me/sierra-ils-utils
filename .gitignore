@@ -1,4 +1,8 @@
 .vscode
+
+# uv
+.python-version
+
 # custom ignore
 .config.json
 *config*.json

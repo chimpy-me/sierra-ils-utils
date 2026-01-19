@@ -1,10 +1,14 @@
-import httpx
+from __future__ import annotations
+
 import asyncio
+import logging
 import threading
 import time
-import logging
+from typing import Any
 
-# get a module-level logger
+import httpx
+
+# Module-level logger
 logger = logging.getLogger(__name__)
 
 class SierraRESTClient:
@@ -43,41 +47,41 @@ class SierraRESTClient:
         ```
     """
     def __init__(
-        self, 
-        base_url,
-        client_id,
-        client_secret,
-        max_retries=3,
-        backoff_factor=1.0,
-        timeout=30.0,
-        sync_client=None,   # Allow injection of custom clients (e.g. hishel)
-        async_client=None,  # ""
-        *args, 
-        **kwargs
-    ):
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.access_token = None
-        self.token_expiry = 0
-        self._async_lock = asyncio.Lock()  # Async lock for async operations
-        self._thread_lock = threading.Lock()  # Thread lock for sync operations
-        self.max_retries = max_retries
-        self.backoff_factor = backoff_factor
+        self,
+        base_url: str,
+        client_id: str,
+        client_secret: str,
+        max_retries: int = 3,
+        backoff_factor: float = 1.0,
+        timeout: float = 30.0,
+        sync_client: httpx.Client | None = None,
+        async_client: httpx.AsyncClient | None = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        self.client_id: str = client_id
+        self.client_secret: str = client_secret
+        self.access_token: str | None = None
+        self.token_expiry: float = 0
+        self._async_lock: asyncio.Lock = asyncio.Lock()
+        self._thread_lock: threading.Lock = threading.Lock()
+        self.max_retries: int = max_retries
+        self.backoff_factor: float = backoff_factor
 
-        # Initialize clients with base_url 
+        # Initialize clients with base_url
         # (one for synchronous/blocking requests)
-        self._sync_client = sync_client or httpx.Client(
-            base_url=base_url, 
+        self._sync_client: httpx.Client = sync_client or httpx.Client(
+            base_url=base_url,
             timeout=timeout,
-            *args, 
-            **kwargs
+            *args,
+            **kwargs,
         )
         # (and one for asynchronous/non-blocking requests)
-        self._async_client = async_client or httpx.AsyncClient(
+        self._async_client: httpx.AsyncClient = async_client or httpx.AsyncClient(
             base_url=base_url,
             timeout=httpx.Timeout(timeout),
             *args,
-            **kwargs
+            **kwargs,
         )
 
         logger.debug("SierraRESTClient initialized...")
@@ -87,9 +91,9 @@ class SierraRESTClient:
         )
         
 
-    def _get_new_token_sync(self):
+    def _get_new_token_sync(self, force: bool = False) -> None:
         with self._thread_lock:
-            if self.access_token and time.time() < self.token_expiry:
+            if not force and self.access_token and time.time() < self.token_expiry:
                 logger.debug("Sync token still valid; skipping refresh.")
                 return
             logger.info("Fetching a new sync token from %s/token", self._sync_client.base_url)
@@ -104,9 +108,9 @@ class SierraRESTClient:
             self.token_expiry = time.time() + token_data.get("expires_in", 3600)
             logger.info("Sync token fetched. Expires at %f", self.token_expiry)
 
-    async def _get_new_token_async(self):
+    async def _get_new_token_async(self, force: bool = False) -> None:
         async with self._async_lock:
-            if self.access_token and time.time() < self.token_expiry:
+            if not force and self.access_token and time.time() < self.token_expiry:
                 logger.debug("Async token still valid; skipping refresh.")
                 return
             logger.info("Fetching a new async token from %s/token", self._async_client.base_url)
@@ -122,29 +126,28 @@ class SierraRESTClient:
             logger.info("Async token fetched. Expires at %f", self.token_expiry)
 
 
-    def _ensure_valid_token_sync(self):
+    def _ensure_valid_token_sync(self) -> None:
         logger.debug("_ensure_valid_token_sync()")
         if not self.access_token or time.time() >= self.token_expiry:
             self._get_new_token_sync()
 
-
-    async def _ensure_valid_token_async(self):
+    async def _ensure_valid_token_async(self) -> None:
         logger.debug("_ensure_valid_token_async()")
         if not self.access_token or time.time() >= self.token_expiry:
             await self._get_new_token_async()
 
     
     def request(
-        self, 
-        method, 
-        url, 
-        *args, 
-        retries=None, 
-        backoff_factor=None, 
-        **kwargs
-    ):
+        self,
+        method: str,
+        url: str,
+        *args: Any,
+        retries: int | None = None,
+        backoff_factor: float | None = None,
+        **kwargs: Any,
+    ) -> httpx.Response:
         """
-        For making a synchronous (blocking) request with retry and backoff logic,
+        Make a synchronous (blocking) request with retry and backoff logic,
         including handling of transient 5xx errors.
         """
         retries = retries or self.max_retries
@@ -169,10 +172,10 @@ class SierraRESTClient:
 
                 response = self._sync_client.request(method, url, *args, **kwargs)
 
-                # Check for 401 => possibly refresh token and retry once
+                # Check for 401 => force refresh token and retry once
                 if response.status_code == 401:
                     logger.warning("Got 401 on sync request. Refreshing token and retrying.")
-                    self._get_new_token_sync()
+                    self._get_new_token_sync(force=True)
                     kwargs["headers"]["Authorization"] = f"Bearer {self.access_token}"
                     response = self._sync_client.request(method, url, *args, **kwargs)
                     if response.status_code == 401:
@@ -210,29 +213,29 @@ class SierraRESTClient:
                     raise
 
     async def async_request(
-        self, 
-        method, 
-        url, 
-        *args, 
-        retries=None, 
-        backoff_factor=None, 
-        **kwargs
-    ):
+        self,
+        method: str,
+        url: str,
+        *args: Any,
+        retries: int | None = None,
+        backoff_factor: float | None = None,
+        **kwargs: Any,
+    ) -> httpx.Response:
         """
-        For making an asynchronous request with retry and backoff logic,
+        Make an asynchronous request with retry and backoff logic,
         including handling of transient 5xx errors.
         """
         retries = retries or self.max_retries
         backoff_factor = backoff_factor or self.backoff_factor
 
-        await self._ensure_valid_token_async()
-
-        # Always add the Authorization header explicitly for clarity
-        kwargs.setdefault("headers", {})
-        kwargs["headers"]["Authorization"] = f"Bearer {self.access_token}"
-
         for attempt in range(retries):
             try:
+                await self._ensure_valid_token_async()
+
+                # Add the Authorization header explicitly for clarity
+                kwargs.setdefault("headers", {})
+                kwargs["headers"]["Authorization"] = f"Bearer {self.access_token}"
+
                 logger.debug(
                     "Async request attempt %d/%d: %s %s [token=%s]",
                     attempt + 1,
@@ -243,10 +246,10 @@ class SierraRESTClient:
                 )
                 response = await self._async_client.request(method, url, *args, **kwargs)
 
-                # -- Handle 401 (Unauthorized) --
+                # -- Handle 401 (Unauthorized) => force refresh token --
                 if response.status_code == 401:
                     logger.warning("Got 401 on async request. Refreshing token and retrying.")
-                    await self._get_new_token_async()
+                    await self._get_new_token_async(force=True)
                     kwargs["headers"]["Authorization"] = f"Bearer {self.access_token}"
                     response = await self._async_client.request(method, url, *args, **kwargs)
                     if response.status_code == 401:
@@ -288,10 +291,28 @@ class SierraRESTClient:
                 logger.warning("Async request cancelled.")
                 raise
 
-    def close(self):
+    def close(self) -> None:
+        """Close the synchronous HTTP client."""
         logger.debug("Closing sync client.")
         self._sync_client.close()
 
-    async def aclose(self):
+    async def aclose(self) -> None:
+        """Close the asynchronous HTTP client."""
         logger.debug("Closing async client.")
         await self._async_client.aclose()
+
+    # Context manager support (sync)
+    def __enter__(self) -> SierraRESTClient:
+        return self
+
+    def __exit__(self, _exc_type: Any, _exc_val: Any, _exc_tb: Any) -> bool:
+        self.close()
+        return False
+
+    # Context manager support (async)
+    async def __aenter__(self) -> SierraRESTClient:
+        return self
+
+    async def __aexit__(self, _exc_type: Any, _exc_val: Any, _exc_tb: Any) -> bool:
+        await self.aclose()
+        return False

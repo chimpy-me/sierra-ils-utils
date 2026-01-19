@@ -1,0 +1,41 @@
+[project]
+name = "sierra-ils-utils"
+version = "0.1.0"
+description = "A wrapper around httpx for working with the Sierra ILS REST API"
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Ray Voelker", email = "ray.voelker@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.28.1,<0.29.0",
+]
+
+[project.optional-dependencies]
+marc = [
+    "pymarc>=5.2.3,<6.0.0",
+]
+test = [
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.0",
+    "respx>=0.22.0",
+]
+dev = [
+    "sierra-ils-utils[marc,test]",
+]
+
+[project.urls]
+Homepage = "https://github.com/chimpy-me/sierra-ils-utils/"
+Repository = "https://github.com/chimpy-me/sierra-ils-utils/"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["sierra_ils_utils"]
