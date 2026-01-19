@@ -2,7 +2,7 @@ from importlib.metadata import version, PackageNotFoundError
 
 from .sierra_rest_client import SierraRESTClient
 from .sierra_datetime import SierraDateTime, SierraDate
-from .utils import get_max_record_id
+from .utils import get_max_record_id, v6_create_list_query
 
 # Get version from package metadata
 try:
@@ -20,4 +20,5 @@ __all__ = [
     "SierraDateTime",
     "SierraDate",
     "get_max_record_id",
+    "v6_create_list_query",
 ]
