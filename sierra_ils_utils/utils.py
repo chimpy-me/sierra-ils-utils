@@ -1,10 +1,111 @@
 from .sierra_rest_client import SierraRESTClient
 
+import asyncio
 import logging
-from typing import Optional
+from typing import Any
 
 # Module-level logger
 logger = logging.getLogger(__name__)
+
+
+async def v6_create_list_query(
+    client: SierraRESTClient,
+    endpoint: str,
+    query: dict,
+    fields: str = "id",
+    query_limit: int = 2000,
+    concurrency: int = 5,
+    **params,
+) -> list[dict[str, Any]]:
+    """
+    Execute a Create List-style JSON query and fetch full record data.
+
+    This is a two-phase operation:
+    1. POST the query to /{endpoint}/query to get matching record links
+    2. Fetch full record details with the specified fields concurrently
+
+    Example Use:
+        query = {
+            "queries": [{
+                "target": {"record": {"type": "item"}, "field": {"tag": "b"}},
+                "expr": {"op": "equals", "operands": ["31234567890123"]}
+            }]
+        }
+        items = await v6_create_list_query(
+            client, "items", query,
+            fields="id,barcode,status,location"
+        )
+
+    :param client:        A SierraRESTClient instance.
+    :param endpoint:      The API endpoint (e.g., 'items', 'bibs', 'patrons').
+    :param query:         The JSON query dict (Create Lists format).
+    :param fields:        Comma-delimited list of fields to fetch (default: "id").
+    :param query_limit:   Max records per query request (for pagination).
+    :param concurrency:   Maximum concurrent requests (default: 5).
+    :param **params:      Additional params passed to the GET requests.
+    :return:              List of record dicts with requested fields.
+    """
+    # Normalize endpoint (remove leading/trailing slashes)
+    endpoint = endpoint.strip("/")
+
+    # Phase 1: Execute query and collect all matching record links
+    all_links: list[str] = []
+    offset = 0
+
+    while True:
+        logger.debug(f"Querying {endpoint}/query offset={offset} limit={query_limit}")
+
+        response = await client.async_request(
+            "POST",
+            f"{endpoint}/query",
+            params={"offset": offset, "limit": query_limit},
+            json=query,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        entries = data.get("entries", [])
+
+        if not entries:
+            break
+
+        for entry in entries:
+            if "link" in entry:
+                all_links.append(entry["link"])
+
+        logger.debug(f"Got {len(entries)} entries, total links: {len(all_links)}")
+
+        # Check if there are more results
+        if len(entries) < query_limit:
+            break
+
+        offset += query_limit
+
+    if not all_links:
+        logger.info(f"Query returned no matching records for {endpoint}")
+        return []
+
+    logger.info(f"Query returned {len(all_links)} matching records for {endpoint}")
+
+    # Phase 2: Fetch full records concurrently
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def fetch_record(link: str) -> dict[str, Any]:
+        async with semaphore:
+            logger.debug(f"Fetching {link}")
+            resp = await client.async_request(
+                "GET",
+                link,
+                params={"fields": fields, **params},
+            )
+            resp.raise_for_status()
+            return resp.json()
+
+    tasks = [fetch_record(link) for link in all_links]
+    results = await asyncio.gather(*tasks)
+
+    logger.info(f"Fetched {len(results)} records with fields: {fields}")
+    return list(results)
 
 def get_max_record_id(
     client: SierraRESTClient,  # SierraAPI or SierraRESTClient

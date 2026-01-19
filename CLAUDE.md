@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 - **SierraRESTClient** (`sierra_rest_client.py`): Core HTTP client with sync (`request()`) and async (`async_request()`) methods. Handles token management, 401 refresh, and 5xx retries.
 - **SierraDateTime/SierraDate** (`sierra_datetime.py`): Datetime wrappers ensuring Sierra API-compatible formatting (UTC, no microseconds, 'Z' suffix).
 - **get_max_record_id** (`utils.py`): Utility to find maximum valid record ID using exponential/binary search.
+- **v6_create_list_query** (`utils.py`): Async utility to execute Create List-style JSON queries and fetch full record data with concurrent requests.
 
 ## Development Commands
 
@@ -65,6 +66,7 @@ Tests use `pytest` with `respx` for HTTP mocking. Run with `uv run pytest`.
 
 ### Features
 
+- [x] Add `v6_create_list_query()` for Create List-style queries with concurrent record fetching
 - [ ] Add async version of `get_max_record_id()`
 - [ ] Add convenience methods (`get()`, `post()`, etc.)
 - [ ] Consider rate limiting support
