@@ -1,0 +1,55 @@
+site_name: sierra-ils-utils
+site_description: The unofficial Sierra REST API field guide for developers, builders, and hackers
+site_url: https://chimpy-me.github.io/sierra-ils-utils/
+repo_url: https://github.com/chimpy-me/sierra-ils-utils
+repo_name: chimpy-me/sierra-ils-utils
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - tables
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Get Started:
+      - Your first API call: tutorials/getting-started.md
+  - Reference:
+      - The Quirks Catalog:
+          - Overview: reference/quirks/index.md
+          - Write semantics: reference/quirks/write-semantics.md
+          - Side effects: reference/quirks/side-effects.md
+          - Reads & IDs: reference/quirks/reads-and-ids.md
