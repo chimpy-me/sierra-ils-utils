@@ -43,7 +43,7 @@ different columns.
 
 **Type:** By design.
 
-**How to handle:** Use the API `id` (the record number) in API URLs (`/v6/patrons/{record_num}`).
+**How to handle:** Use the API `id` (the record number) in request paths (`patrons/{record_num}`).
 When joining API data to the database, map the API `id` to the record-number column — not to the
 internal primary-key column. The two are easy to confuse because both are large integers.
 

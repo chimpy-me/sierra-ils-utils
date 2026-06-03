@@ -53,6 +53,6 @@ by **1** per Sierra Desktop staff save.
 delta suggests a REST API touch, `+1` suggests a Desktop save. It's a first cut, not proof — a
 coincidence could produce either.
 
-**How we know:** REST PUTs were observed moving the counter by 2 (e.g. 7520 → 7522) while an
+**How we know:** REST PUTs were observed moving the counter by 2 (e.g. 42 → 44) while an
 empirical Desktop edit moved it by exactly 1. The likely cause is that a REST PUT performs two
 internal saves — one for the payload, one for its own bookkeeping fields.
