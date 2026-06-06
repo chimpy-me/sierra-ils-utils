@@ -18,10 +18,12 @@ Every quirk is a card with the same four lines:
     configuration differ between libraries. Treat each entry as a strong hypothesis to confirm on
     *your* system — and see [Discover quirks yourself](#discovering-quirks-yourself).
 
-!!! note "Provenance: patron-record heavy"
-    Most of this knowledge came from patron-record projects, so the catalog leans that way today.
-    The behaviors are usually general Sierra REST traits, but bib/item/order-specific quirks are
-    under-represented for now. Found one? [Send it in.](https://github.com/chimpy-me/sierra-ils-utils)
+!!! note "Provenance: patron-record heavy (bib/harvest coverage growing)"
+    Most of the write/side-effect knowledge came from patron-record projects, so the catalog still
+    leans that way. The [Change polling](change-polling.md) page begins filling the bib/harvest gap
+    (range queries, deletion polling, pagination) from a production bib-harvest project; item- and
+    order-specific quirks are still under-represented. Found one?
+    [Send it in.](https://github.com/chimpy-me/sierra-ils-utils)
 
 ## Quick reference
 
@@ -42,6 +44,12 @@ Every quirk is a card with the same four lines:
 | API `id` = `record_num`, not the DB primary key | By design | [Reads & IDs](reads-and-ids.md) |
 | Multiple values packed into one varField | Data quality | [Reads & IDs](reads-and-ids.md) |
 | varField content length ceiling is ≥ 8000 chars | By design | [Reads & IDs](reads-and-ids.md) |
+| Zero-match range query may 404 (`code 107`) — and query shapes disagree | Bug-or-quirk | [Change polling](change-polling.md) |
+| `deletedDate` is date-only; `updatedDate` is a full timestamp | By design | [Change polling](change-polling.md) |
+| `GET bibs` returns entries ascending by `id` (keyset-paginable) | By design | [Change polling](change-polling.md) |
+| `updatedDate` + `id` range filters AND together in one query | By design | [Change polling](change-polling.md) |
+| List responses cap at ~2000; detect end by a short page, not `total` | By design | [Change polling](change-polling.md) |
+| `deleted=false` hides server-deleted records (they vanish from polls) | By design | [Change polling](change-polling.md) |
 
 ## Discovering quirks yourself
 
