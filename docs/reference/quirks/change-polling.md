@@ -149,7 +149,7 @@ undocumented; confirm the ordering on your deployment before trusting `max(id)+1
 **How to handle:** Sweep with a keyset cursor and **advance by `max(returned id) + 1`**, exactly as for
 `GET bibs`. Always `DELETE` the generated file each page — they accumulate server-side otherwise. Stop
 on a short/empty page, not on a count. For the full recipe (missing-id discovery, the GET/GET/DELETE
-dance, throughput, and orphan handling) see the *Bulk-export the full MARC catalog* how-to.
+dance, throughput, and orphan handling) see the [Bulk-export the full MARC catalog](../../how-to/bulk-export-marc.md) how-to.
 
 ```python
 cursor, MAX = lowest_id, 9_999_999
