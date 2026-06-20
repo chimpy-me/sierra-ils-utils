@@ -86,6 +86,8 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+# Local scratch notebooks may hold real (patron) data — never publish to this PUBLIC repo.
+*.ipynb
 
 # IPython
 profile_default/
