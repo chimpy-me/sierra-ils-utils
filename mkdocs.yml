@@ -59,3 +59,4 @@ nav:
           - Change polling, ranges & pagination: reference/quirks/change-polling.md
   - Explanation:
       - Why writes have side effects: explanation/sierra-rest-thin-projection.md
+      - Discovering quirks yourself: explanation/discover-quirks-yourself.md

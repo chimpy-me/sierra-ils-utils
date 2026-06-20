@@ -16,7 +16,7 @@ Every quirk is a card with the same four lines:
 !!! warning "Verify on your own deployment"
     These behaviors were observed on specific Sierra deployments (production and test). Versions and
     configuration differ between libraries. Treat each entry as a strong hypothesis to confirm on
-    *your* system — and see [Discover quirks yourself](#discovering-quirks-yourself).
+    *your* system — and see [Discover quirks yourself](../../explanation/discover-quirks-yourself.md).
 
 !!! note "Provenance: patron-record heavy (bib/harvest coverage growing)"
     Most of the write/side-effect knowledge came from patron-record projects, so the catalog still
@@ -53,14 +53,6 @@ Every quirk is a card with the same four lines:
 
 ## Discovering quirks yourself
 
-You don't have to take these on faith. The safe way to confirm a behavior on your own deployment:
-
-- Test against a **test/sandbox Sierra** if you have one, or pick clearly **inactive** records.
-- Probe with **identical-data** PUTs (send a record's data back unchanged) and **intentionally
-  malformed** PUTs — both let you observe side effects without meaningfully altering data.
-- **Hash the content fields** before and after to prove the payload is unchanged while you watch
-  what Sierra mutates on its own.
-- Cross-check against the database (read-only) if you have SQL access.
-
-A runnable, deployment-agnostic version of this probe harness is planned for a later phase of this
-guide.
+You don't have to take these on faith — every entry is a hypothesis you can confirm on
+your own deployment with safe, read-mostly probes. See
+[Discovering quirks yourself](../../explanation/discover-quirks-yourself.md) for the method.
