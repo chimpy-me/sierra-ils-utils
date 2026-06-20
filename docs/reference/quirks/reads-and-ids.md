@@ -81,3 +81,28 @@ non-issue for normal use.
 
 **How we know:** A ladder test (100 → 8000 chars) on a test record stored every size verbatim with no
 truncation.
+
+## The 50-record cap applies to enumerated `id` lists, not `id=[ranges]`
+
+**Behavior:** When you fetch several records by listing their ids — `id=1001,1002,1003,…` — Sierra
+**silently caps the request at 50 ids** and drops the rest. No error, no warning: a 51-id request
+returns 50 records and looks identical to a valid one. This 50-cap is frequently mistaken for a limit
+on *range* queries. It is not. `id=[<start>,<end>]` is a **bounded range**, not an id list, and its page
+size is governed by the separate `limit=` parameter (capped ~2000 — see *Change polling*). So an
+enumerated batch tops out at 50 records per call, while one range page returns up to 2000.
+
+**Type:** By design (the 50-id list cap is undocumented, and the silent truncation past 50 is the trap).
+
+**How to handle:** For a handful of known ids, enumerate them but **chunk into ≤50-id requests** and
+assert you received every id back. For a bulk read across an id span, prefer a **range + `limit`** —
+one `id=[lo,hi]&limit=2000` call does the work of forty id-list calls — and for MARC specifically, the
+two-phase `bibs/marc` range sweep (see *Change polling*). Don't pack >50 ids into a list expecting more
+back, and don't push `limit` past ~2000.
+
+**How we know:** A 51-id request returned exactly 50 records, silently dropping the 51st; the same id
+span fetched as `id=[lo,hi]&limit=2000` returned the whole block in a single call. The throughput
+difference is dramatic and counterintuitive — a production MARC backfill that switched from 50-id
+enumerated batches to 2000-wide range pages went from **~100 records/min to ~55,000 records/min**
+against the *same* catalog. The bottleneck was never Sierra's MARC assembly; it was per-request
+overhead paid once per 50 records instead of once per 2000. For a cold bulk read, **make pages bigger,
+not threads more** — raising concurrency on the id-list form only multiplied timeouts.

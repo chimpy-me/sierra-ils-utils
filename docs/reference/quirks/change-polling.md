@@ -126,3 +126,46 @@ back" in a change poll — that false-positives on suppressed / no-MARC records.
 **How we know:** A mirror built only on `deleted=false` incremental polls accrued server-deleted
 records as permanently-live rows; adding a `deletedDate` delete-poll plus an id reconcile was required
 to converge.
+
+## `bibs/marc` is a two-phase binary export — and `id` ranges keyset-paginate it
+
+**Behavior:** `bibs/marc` does **not** return JSON `entries` like `GET bibs`. It is a **two-phase
+export**: the first `GET bibs/marc?id=[<start>,<end>]&limit=<n>` returns a small *MarcSummary* JSON
+pointing at a server-generated binary `.mrc` file; you then `GET` that file (raw ISO-2709 MARC) and
+`DELETE` it to clean up. Crucially, the `id=[<cursor>,<max>]&limit=2000` form returns the **lowest
+~2000 ids in the range, as a contiguous ascending block** — so the same keyset cursor that paginates
+`GET bibs` (see *"GET bibs returns entries ascending by id"* above) drives a whole-catalog MARC export
+with no gaps and no overlap. The `limit` caps at ~2000 here, identical to the list-endpoint cap
+documented above.
+
+```json
+// phase 1 response — the MarcSummary, NOT the records themselves
+{ "file": ".../v6/bibs/marc/files/<fileId>", "inputRecords": 2000, "outputRecords": 2000, "errors": 0 }
+```
+
+**Type:** By design (the two-phase file protocol and the lowest-first range ordering are both
+undocumented; confirm the ordering on your deployment before trusting `max(id)+1`).
+
+**How to handle:** Sweep with a keyset cursor and **advance by `max(returned id) + 1`**, exactly as for
+`GET bibs`. Always `DELETE` the generated file each page — they accumulate server-side otherwise. Stop
+on a short/empty page, not on a count. For the full recipe (missing-id discovery, the GET/GET/DELETE
+dance, throughput, and orphan handling) see the *Bulk-export the full MARC catalog* how-to.
+
+```python
+cursor, MAX = lowest_id, 9_999_999
+while work_remains:
+    summary = client.request("GET", f"bibs/marc?id=[{cursor},{MAX}]&limit=2000").json()
+    file_id = summary["file"].rsplit("/", 1)[-1]
+    mrc = client.request("GET", f"bibs/marc/files/{file_id}").content   # binary ISO-2709
+    client.request("DELETE", f"bibs/marc/files/{file_id}")              # clean up
+    ids = [bib_id_of(r) for r in parse_marc(mrc)]
+    if not ids:
+        break
+    cursor = max(ids) + 1                                               # contiguous, gap/dup-free
+```
+
+**How we know:** A production backfill swept the bib band `1,126,231 → 1,482,667` in **179 pages of
+~2000** records. Every one of the 5,000 targeted ids in that band came back — **0 skipped** — which is
+only possible if each page is the lowest-id contiguous block of the remaining range. Sustained
+throughput was **~900 records/sec single-threaded** (≈55k/min); see the enumerated-list-cap entry in
+*Reads & IDs* for why this beats id-list batching by ~500×.
