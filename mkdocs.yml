@@ -51,6 +51,7 @@ nav:
   - Recipes:
       - Safely edit a record (GET-modify-PUT): how-to/safe-get-modify-put.md
       - Bulk-export the full MARC catalog: how-to/bulk-export-marc.md
+      - Poll for changed and deleted records: how-to/poll-for-changes.md
   - Reference:
       - The Quirks Catalog:
           - Overview: reference/quirks/index.md

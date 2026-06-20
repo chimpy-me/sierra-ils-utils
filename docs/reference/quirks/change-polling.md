@@ -63,7 +63,7 @@ strictly after the previous page, with no gap and no overlap.
 
 **How to handle:** Prefer **keyset (seek) pagination** — `id=[<last_seen_id + 1>,]` — over `offset` for
 large or long-running sweeps. Offset pagination can drop or duplicate rows if the underlying set
-changes mid-sweep; an ascending-`id` seek cursor is gap/dup-free under concurrent inserts and deletes.
+changes mid-sweep; an ascending-`id` seek cursor is gap/dup-free under concurrent inserts and deletes. For the full polling loop, see [Poll for changed and deleted records](../../how-to/poll-for-changes.md).
 
 **How we know:** Page 1 (`id=[1000000,]`, limit 50) returned `1000001…1000051` ascending; page 2
 (`id=[1000052,]`) returned `1000052…` — strictly after page 1, with no gap or overlap.
@@ -121,7 +121,7 @@ therefore **never learns the record is gone** — it simply stops appearing, ind
 `deleted=true&deletedDate=[…]` poll on its own cursor** (mind its day granularity, above), and/or a
 periodic **id reconciliation** (compare your live id set against Sierra's) to catch the deletions the
 change poll structurally cannot see. Don't try to infer deletions from "an id I expected but didn't get
-back" in a change poll — that false-positives on suppressed / no-MARC records.
+back" in a change poll — that false-positives on suppressed / no-MARC records. The [Poll for changed and deleted records](../../how-to/poll-for-changes.md) recipe runs the required two-cursor pattern.
 
 **How we know:** A mirror built only on `deleted=false` incremental polls accrued server-deleted
 records as permanently-live rows; adding a `deletedDate` delete-poll plus an id reconcile was required
