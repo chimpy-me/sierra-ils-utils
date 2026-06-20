@@ -1,8 +1,3 @@
-<!--
-DRAFT — Phase 2 (Recipes / how-to). Intentionally NOT yet wired into mkdocs.yml nav.
-The how-to quadrant's structure is an open Phase-2 Diátaxis decision; place/format on resume.
--->
-
 # Bulk-export the full MARC catalog
 
 **Goal:** pull binary MARC (ISO-2709) for your entire bib catalog — or just the bibs you're missing —

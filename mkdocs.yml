@@ -11,6 +11,7 @@ theme:
     - navigation.sections
     - navigation.top
     - navigation.tracking
+    - navigation.footer
     - search.suggest
     - search.highlight
     - content.code.copy
@@ -47,6 +48,8 @@ nav:
   - Home: index.md
   - Get Started:
       - Your first API call: tutorials/getting-started.md
+  - Recipes:
+      - Bulk-export the full MARC catalog: how-to/bulk-export-marc.md
   - Reference:
       - The Quirks Catalog:
           - Overview: reference/quirks/index.md
