@@ -4,6 +4,11 @@
 [![PyPI version](https://img.shields.io/pypi/v/sierra-ils-utils)](https://pypi.org/project/sierra-ils-utils/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
+> 📖 **Full documentation & the unofficial Sierra REST API field guide:**
+> **<https://chimpy-me.github.io/sierra-ils-utils/>**
+> Start with [Get Started](https://chimpy-me.github.io/sierra-ils-utils/tutorials/getting-started/)
+> or dive into the [Quirks Catalog](https://chimpy-me.github.io/sierra-ils-utils/reference/quirks/).
+
 A Python wrapper around [HTTPX](https://www.python-httpx.org/) for working with the Sierra ILS REST API.
 
 ## Features
