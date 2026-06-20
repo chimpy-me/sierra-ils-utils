@@ -22,7 +22,7 @@ The CIRCACTIVE bump is the consequential one: Sierra treats *any* patron PUT as 
 **How to handle:** Assume every PUT moves all four. Any retention/purge/dormancy workflow keyed on
 `activity_gmt` (CIRCACTIVE), Updated Date, Revisions, or PDATE will see touched records as "recently
 active." If that matters, skip records you'd rather not bump, or accept the bump knowingly. Exclude
-these four keys from any "did anything else change?" verification.
+these four keys from any "did anything else change?" verification. See [Why writes have side effects](../../explanation/sierra-rest-thin-projection.md) for why an identical PUT still moves them.
 
 **How we know:** A round-trip test (GET → PUT identical data → GET) showed identical content hashes
 before and after, but all four timestamps/counters had moved; reconfirmed across thousands of PUTs
@@ -51,7 +51,7 @@ by **1** per Sierra Desktop staff save.
 
 **How to handle:** Use it as a rough forensic signal when auditing record history: a `+2` Revisions
 delta suggests a REST API touch, `+1` suggests a Desktop save. It's a first cut, not proof — a
-coincidence could produce either.
+coincidence could produce either. See [Why writes have side effects](../../explanation/sierra-rest-thin-projection.md) (a REST PUT is effectively two saves).
 
 **How we know:** REST PUTs were observed moving the counter by 2 (e.g. 42 → 44) while an
 empirical Desktop edit moved it by exactly 1. The likely cause is that a REST PUT performs two
