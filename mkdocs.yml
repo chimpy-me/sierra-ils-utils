@@ -49,6 +49,7 @@ nav:
   - Get Started:
       - Your first API call: tutorials/getting-started.md
   - Recipes:
+      - Safely edit a record (GET-modify-PUT): how-to/safe-get-modify-put.md
       - Bulk-export the full MARC catalog: how-to/bulk-export-marc.md
   - Reference:
       - The Quirks Catalog:

@@ -54,5 +54,5 @@ came through REST rather than the Desktop client.
 
 - Reference: [Write semantics → derived projections](../reference/quirks/write-semantics.md)
   and [Side effects](../reference/quirks/side-effects.md) — the austere "what happens".
-<!-- The "How-to: Safely edit a record" bullet is appended here in Task 3, once that
-     page exists, to keep this commit's `mkdocs build --strict` link-clean. -->
+- How-to: [Safely edit a record (GET-modify-PUT)](../how-to/safe-get-modify-put.md) —
+  what to *do* about it.

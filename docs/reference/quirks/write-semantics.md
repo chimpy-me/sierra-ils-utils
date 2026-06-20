@@ -40,6 +40,8 @@ varfields = record.get("varFields", [])
 client.request("PUT", f"patrons/{record_num}", json={"varFields": varfields})
 ```
 
+For the full safe-write procedure, see [Safely edit a record (GET-modify-PUT)](../../how-to/safe-get-modify-put.md).
+
 **How we know:** Confirmed repeatedly across large patron cleanups, and re-confirmed with a
 controlled sentinel probe (append a known marker, verify, then PUT the originals back to remove it).
 
