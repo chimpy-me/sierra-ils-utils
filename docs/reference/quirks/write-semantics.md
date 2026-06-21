@@ -40,6 +40,8 @@ varfields = record.get("varFields", [])
 client.request("PUT", f"patrons/{record_num}", json={"varFields": varfields})
 ```
 
+For the full safe-write procedure, see [Safely edit a record (GET-modify-PUT)](../../how-to/safe-get-modify-put.md).
+
 **How we know:** Confirmed repeatedly across large patron cleanups, and re-confirmed with a
 controlled sentinel probe (append a known marker, verify, then PUT the originals back to remove it).
 
@@ -121,7 +123,7 @@ the underlying `varFields` and **re-renders** them after every `varFields` PUT.
 
 **How to handle:** Don't compare these top-level arrays before/after a write to detect "did something
 else change?" — they shift on every legitimate varField edit. Compare the underlying varFields
-instead.
+instead. See [Why writes have side effects](../../explanation/sierra-rest-thin-projection.md) for the underlying reason.
 
 **How we know:** Equality checks on these arrays false-positived on every successful varField edit
 during pilot runs; switching the check to the underlying varFields resolved it.
