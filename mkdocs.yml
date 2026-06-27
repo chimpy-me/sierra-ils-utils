@@ -60,6 +60,7 @@ nav:
           - Reads & IDs: reference/quirks/reads-and-ids.md
           - Change polling, ranges & pagination: reference/quirks/change-polling.md
           - Suppression (BCODE3 / ICODE2): reference/quirks/suppression.md
+          - Scoped records (campus_code): reference/quirks/scoped-records.md
   - Explanation:
       - Why writes have side effects: explanation/sierra-rest-thin-projection.md
       - Discovering quirks yourself: explanation/discover-quirks-yourself.md

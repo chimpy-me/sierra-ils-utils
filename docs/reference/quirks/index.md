@@ -53,6 +53,8 @@ Every quirk is a card with the same four lines:
 | `suppressed` is a read-only boolean on bibs and items | By design | [Suppression](suppression.md) |
 | `suppressed=true` filters; suppressed records are otherwise returned inline | By design | [Suppression](suppression.md) |
 | Suppression rides in the MARC export — bib `998$e`, item `945$o` | By design | [Suppression](suppression.md) |
+| `items?deleted=false` returns only the host's own (`campus_code=''`) records | By design | [Scoped records](scoped-records.md) |
+| `record_num` is non-unique in `record_metadata` (one row per scope) | By design | [Scoped records](scoped-records.md) |
 
 ## Discovering quirks yourself
 
