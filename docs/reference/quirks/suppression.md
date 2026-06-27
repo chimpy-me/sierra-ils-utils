@@ -53,9 +53,9 @@ harvest already carries suppression — no separate JSON fetch is required to ca
 suppression for free, in the same pass — and to backfill it from already-stored MARC with zero new
 API calls. **Store the raw code, not a hard-coded boolean** — and **do not assume `'s'` is the only
 suppressed code.** The reliable rule is the *inverse*: `'-'` is the OPAC-display (not-suppressed)
-value, and **any other code is suppressed** (`suppressed = code != '-'`). At CHPL, BOTH `'s'` and
-`'d'` occur and both map to REST `suppressed=true` (the `'s'`-only assumption from a test-environment
-sample missed the `'d'`, which only appeared in production data). So keep the raw code in the lake
+value, and **any other code is suppressed** (`suppressed = code != '-'`). On one production deployment,
+BOTH `'s'` and `'d'` occur and both map to REST `suppressed=true` (the `'s'`-only assumption from a
+test-environment sample missed the `'d'`, which only appeared in production data). So keep the raw code in the lake
 and apply `coalesce(code,'-') <> '-'` (or `NOT IN (<your library's display code>)`) downstream;
 that survives codes you haven't enumerated yet. Confirm your deployment's display code by correlating
 the fixed-field value against the REST `suppressed` boolean across a varied sample, **including a
