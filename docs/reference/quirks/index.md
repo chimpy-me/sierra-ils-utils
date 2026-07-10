@@ -55,6 +55,8 @@ Every quirk is a card with the same four lines:
 | Suppression rides in the MARC export — bib `998$e`, item `945$o` | By design | [Suppression](suppression.md) |
 | `items?deleted=false` returns only the host's own (`campus_code=''`) records | By design | [Scoped records](scoped-records.md) |
 | `record_num` is non-unique in `record_metadata` (one row per scope) | By design | [Scoped records](scoped-records.md) |
+| `validate` `caseSensitivity` defaults to `true` — rejects mixed-case identifiers | By design | [Patron validation](patron-validate.md) |
+| `validate` checks only the first 8 characters of the PIN | Bug-or-quirk | [Patron validation](patron-validate.md) |
 
 ## Discovering quirks yourself
 
