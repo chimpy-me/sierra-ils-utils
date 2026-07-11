@@ -53,6 +53,7 @@ nav:
       - Bulk-export the full MARC catalog: how-to/bulk-export-marc.md
       - Poll for changed and deleted records: how-to/poll-for-changes.md
   - Reference:
+      - Record types & data surfaces: reference/sierra-record-types.md
       - The Quirks Catalog:
           - Overview: reference/quirks/index.md
           - Write semantics: reference/quirks/write-semantics.md
