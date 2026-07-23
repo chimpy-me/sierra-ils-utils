@@ -1,11 +1,14 @@
 # Safely edit a record (GET-modify-PUT)
 
-**Goal:** change one or more `varFields` on a patron (or bib/item) record without
-destroying the fields you didn't touch.
+**Goal:** change or delete `varFields` on a patron (or item) record without corrupting the
+fields you didn't touch.
 
-A `PUT` that includes `varFields` **replaces the entire array** — every varField you omit
-is deleted. So you never construct a PUT body from scratch; you fetch the whole record,
-edit it in memory, and PUT the *complete* array back.
+A `PUT` with `varFields` **merges by field identity** — omitting a field does *not* delete it
+(that surprises people; see
+[PUT varFields is a merge](../reference/quirks/write-semantics.md)). You still fetch the whole
+record and edit it in memory, because keeping each field's original identity is what stops an
+edit from creating a duplicate — and because **deletion is done by blanking a field's `content`,
+not by removing it from the array**.
 
 ## Before you start
 
@@ -25,12 +28,17 @@ varfields = record.get("varFields", [])
 
 ## 2. Modify varFields in memory
 
-Edit the list you fetched, leaving every entry you don't intend to change untouched. Drop
-any entry whose `content` is empty before sending — Sierra silently removes empty-content
-varFields on save, so pre-filtering keeps your before/after comparison honest.
+Edit the list you fetched, leaving every entry you don't intend to change untouched.
+
+- To **change** a field: edit its `content` in place.
+- To **delete** a patron field: set its `content` to `""` (empty string) — on patrons Sierra
+  removes the entry on save. On items this only blanks the field (the row stays). Do **not** try
+  to delete by removing the entry from the array; omission is ignored.
+- If you *don't* want a deletion, drop empty-content entries before sending so you don't blank a
+  patron field by accident:
 
 ```python
-varfields = [vf for vf in varfields if vf.get("content")]   # drop empty-content entries
+varfields = [vf for vf in varfields if vf.get("content")]   # avoid accidental empty-content deletes
 # ... make your edits to varfields here ...
 ```
 
@@ -59,8 +67,9 @@ else:
 
 ## Gotchas this recipe already handles
 
-- **Full-array replacement** — step 1's `fields=,` + step 3's complete-array PUT is the
-  whole point; omitting a varField deletes it.
+- **Merge, not replacement** — omitting a field does *not* delete it; delete by blanking a
+  field's `content` (patrons). Step 1's `fields=,` + PUT-back preserves each field's identity so
+  edits don't create duplicates.
 - **Empty-content drop** — step 2 pre-filters so it doesn't surprise your verification.
 - **Read-only fields** — step 3 sends only `varFields`, avoiding the `400`.
 - **204 not 200** — step 4 checks the right status and never parses an empty body.

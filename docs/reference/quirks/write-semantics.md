@@ -17,33 +17,51 @@ phone entries.
 **How we know:** A pilot batch returned `204` (success) on every record, yet verification showed
 every record had gained duplicate phone entries. Removing the `phones` key from the payload fixed it.
 
-## PUT `varFields` is full replacement
+## PUT `varFields` is a merge — delete via empty content, not omission
 
-**Behavior:** When `varFields` is present in a `PUT` body, it **replaces the entire array**. Any
-varField you omit is deleted — names, barcodes, addresses, notes, everything.
+**Behavior:** A `PUT` containing `varFields` **merges by field identity** — it does **not** replace
+the stored array wholesale. Omitting a pre-existing varField does **not** delete it; the omitted
+field survives untouched. Deletion works through **empty content** instead:
 
-**Type:** By design.
+- **Patron records:** send the varField back with `content: ""` and Sierra **removes the entire
+  entry**.
+- **Item records:** `content: ""` only **blanks** the field — an empty shell stays on the record.
+  A clean, full removal of an item varField via REST appears unsupported (consistent with
+  Innovative treating item-varField deletion as an enhancement request).
 
-**How to handle:** Use **GET-modify-PUT**: fetch the full record (`fields=,`), modify the varFields
-array in memory, then PUT back the *complete* array including everything you want to keep.
+Sending `content: null` (as opposed to `""`) is rejected with `400 Invalid JSON`.
+
+One trap makes omission *look* like full replacement: a varField you **added via the API** in an
+earlier PUT and then omit **is** removed. If you only ever test add-then-remove, you will wrongly
+conclude the whole array is replaced on every write.
+
+**Type:** By design (merge-by-identity).
+
+**How to handle:**
+
+- **Editing** existing fields: GET-modify-PUT — fetch the full record (`fields=,`), change what you
+  need, PUT it back. Preserving each field's identity is what keeps updates from creating
+  duplicates. See [Safely edit a record](../../how-to/safe-get-modify-put.md).
+- **Deleting** a patron varField: send it with `content: ""`; don't rely on omitting it.
 
 ```python
-# 1. GET the full record
+# Delete a patron varField by blanking its content (NOT by omitting it):
 resp = client.request("GET", f"patrons/{record_num}", params={"fields": ","})
-record = resp.json()
-
-# 2. Modify varFields in memory, keeping everything you don't touch
-varfields = record.get("varFields", [])
-# ... edit varfields ...
-
-# 3. PUT the COMPLETE array back
+varfields = resp.json().get("varFields", [])
+for vf in varfields:
+    if vf.get("fieldTag") == "x" and is_target(vf):
+        vf["content"] = ""            # empty string, not None; Sierra drops the entry (patron)
 client.request("PUT", f"patrons/{record_num}", json={"varFields": varfields})
 ```
 
-For the full safe-write procedure, see [Safely edit a record (GET-modify-PUT)](../../how-to/safe-get-modify-put.md).
-
-**How we know:** Confirmed repeatedly across large patron cleanups, and re-confirmed with a
-controlled sentinel probe (append a known marker, verify, then PUT the originals back to remove it).
+**How we know:** Probed against sierra-test on 2026-07-23 with a reversible add / omit / blank
+harness and a positive control (a sentinel field first proved the PUT actually mutates `varFields`,
+so a "survived" result couldn't be a silent no-op). Omitting a pre-existing note *or* barcode left
+it in place on **both** patron and item records; `content: ""` removed the field on **5/5** patrons
+tested (note fields) and only blanked-to-a-shell on items; `content: null` returned `400`. The
+earlier "full replacement / omit deletes everything" claim traced to an add-then-remove sentinel
+that exercised only the one case where omission deletes. Re-verify on your own deployment and Sierra
+version before relying on either behavior.
 
 ## A successful PUT returns `204`, not `200`
 
@@ -101,18 +119,24 @@ GETted" fails with `400 Invalid JSON : field(s) unknown : ...` listing fields su
 **How we know:** Surfaced building a rollback that PUT a full GET response verbatim; Sierra named the
 unknown fields in the `400`.
 
-## Empty-content varFields are silently dropped on PUT
+## Empty-content varFields: dropped on patrons, blanked on items
 
-**Behavior:** If a `PUT` body's `varFields` array contains an entry whose `content` is empty,
-Sierra **silently removes** that entry on save. The PUT still returns `204`.
+**Behavior:** An entry whose `content` is empty behaves **differently by record type** on save (the
+PUT returns `204` either way):
 
-**Type:** Bug-or-quirk.
+- **Patron:** Sierra **removes the entry entirely** — this is the supported way to *delete* a patron
+  varField (see [PUT varFields is a merge](write-semantics.md) above).
+- **Item:** the entry is **kept with empty content** (an empty shell); it is *not* removed.
 
-**How to handle:** Pre-filter empty-content varFields before sending (`if vf.get("content"):`), or
-treat "an empty varField disappeared" as benign in any before/after verification.
+**Type:** By design on patrons (it is the deletion path); the item/patron split is a quirk.
 
-**How we know:** Records whose snapshot held an empty alternate-phone varField came back without it
-after a `204` PUT; a survey found every empty-content varField dropped and none preserved.
+**How to handle:** If you *don't* intend a deletion, pre-filter empty-content varFields before
+sending (`if vf.get("content"):`) so you don't blank a patron field by accident. In before/after
+verification, treat "an empty patron varField disappeared" as expected.
+
+**How we know:** On sierra-test (2026-07-23), `content: ""` removed the field on every patron tested
+and left an empty shell on every item tested. Earlier: records holding an empty alternate-phone
+varField came back without it after a `204` PUT.
 
 ## `emails`/`phones`/`addresses`/`names` are derived projections
 
