@@ -44,7 +44,7 @@ Two routes, depending on the field:
 |---|---|---|---|---|
 | **Patron** · content | **removed** | — | — | 400 |
 | **Item / Bib** · content | blanked to an empty shell (row stays) | — | — | 400 |
-| **Item / Bib** · subfields | 400 | 400 | blanked to an empty shell | — |
+| **Item / Bib** · subfields | 400 | 400 | blanked to an empty shell | 400 |
 
 So a **patron** content varField is the one field with a clean full removal by blanking. For item
 and bib fields — and any subfield-bearing field — blanking only leaves an empty shell; the only
@@ -76,11 +76,14 @@ after = client.request("GET", f"items/{record_num}", params={"fields": ","}).jso
 **How we know:** Re-derived on sierra-test 2026-07-23 with a reversible probe
 (`scripts/probe-varfield-write-semantics.py`) that first proves each PUT mutates the record (a
 positive control), so a "survived" result can't be a silent no-op. The per-`fieldTag`-group rule
-was confirmed on **patron and bib** (drop one of a repeated tag → the sibling is deleted; drop the
-whole tag → all survive); the deletion table was measured on **patron, item, and bib** for both
-content and subfield fields. An earlier draft of this page called the behaviour "full replacement",
-then "merge" — both were partial views of the per-tag-group rule. Behaviour is deployment- and
-version-specific; re-run the probe on your own system before relying on it.
+was confirmed on **patron, item, and bib** (drop one of a repeated tag → the sibling is deleted;
+drop the whole tag → all survive). The deletion table was measured for **content and subfield
+fields on item and bib**, and for **content fields on patron** (patron varFields carry only
+`content` — no subfield-bearing patron field was found to test). Each cell was measured on one
+representative field tag per record type; we assume Sierra treats tags uniformly within a record
+type, but that dimension was not swept. An earlier draft of this page called the behaviour "full
+replacement", then "merge" — both were partial views of the per-tag-group rule. Behaviour is
+deployment- and version-specific; re-run the probe on your own system before relying on it.
 
 ## A successful PUT returns `204`, not `200`
 

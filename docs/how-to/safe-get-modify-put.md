@@ -92,7 +92,7 @@ on every write and will always look "changed".
 
 **Underlying behavior (reference):**
 
-- [Write semantics → PUT varFields is full replacement](../reference/quirks/write-semantics.md)
+- [Write semantics → PUT varFields replaces per fieldTag group](../reference/quirks/write-semantics.md)
 - [Reads & IDs → `fields=,` returns all fields](../reference/quirks/reads-and-ids.md)
 
 **Why this is necessary:**

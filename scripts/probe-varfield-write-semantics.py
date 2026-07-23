@@ -62,8 +62,18 @@ class Probe:
     def put(self, kind, rid, vfs):
         return self.c.request("PUT", f"{kind}s/{rid}", json={"varFields": vfs})
 
-    def batch(self, kind, n=200):
-        return self.c.request("GET", f"{kind}s", params={"limit": n, "fields": "id,varFields"}).json().get("entries", [])
+    def batch(self, kind, pages=10, n=200):
+        # paginate by id so a candidate outside the first page can still be found —
+        # a single fixed batch once made the item group-model trial skip entirely
+        last = 0
+        for _ in range(pages):
+            es = self.c.request("GET", f"{kind}s",
+                                params={"limit": n, "id": f"[{last + 1},]", "fields": "id,varFields"}
+                                ).json().get("entries", [])
+            if not es:
+                return
+            yield from es
+            last = int(es[-1]["id"])
 
     # ---- part 1: group model ----
     def group_model(self, kind):
@@ -76,7 +86,8 @@ class Probe:
                 orig = copy.deepcopy(e["varFields"])
                 break
         if rid is None:
-            print(f"  group-model: no record with a repeated safe tag on {kind} (singletons only) — skipped")
+            print(f"  group-model: no record with a repeated safe tag on {kind} in scanned window — skipped"
+                  " (WIDEN the scan or seed a repeated tag; do NOT extrapolate this cell from other kinds)")
             return
         base = sorted(key(v) for v in orig)
         grp = [v for v in orig if v.get("fieldTag") == mtag]
