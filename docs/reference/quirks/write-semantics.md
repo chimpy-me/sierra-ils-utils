@@ -83,7 +83,8 @@ fields on item and bib**, and for **content fields on patron** (patron varFields
 representative field tag per record type; we assume Sierra treats tags uniformly within a record
 type, but that dimension was not swept. An earlier draft of this page called the behaviour "full
 replacement", then "merge" — both were partial views of the per-tag-group rule. Behaviour is
-deployment- and version-specific; re-run the probe on your own system before relying on it.
+deployment- and version-specific; re-run the probe on your own system before relying on it —
+see [Verify write semantics on your deployment](../../how-to/verify-write-semantics.md).
 
 ## A successful PUT returns `204`, not `200`
 

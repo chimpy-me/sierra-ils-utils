@@ -32,7 +32,10 @@ The reason these probes are trustworthy is the model in
 straight to the database, an identical-data PUT exercises the *real* write path, so the
 side effects you observe are the real ones — not an artifact of a test double.
 
-## A runnable harness is planned
+## A runnable harness exists for the write-semantics claims
 
-A deployment-agnostic, sanitized version of this probe harness is planned for a later
-phase of this guide, so you can run the confirmations rather than hand-roll them.
+You can run these confirmations rather than hand-roll them: the repo ships a reversible,
+positive-controlled probe that re-derives the PUT `varFields` group model and the deletion
+table on your own deployment. See
+[Verify write semantics on your deployment](../how-to/verify-write-semantics.md).
+Harnesses for the other catalog entries are still to come.
