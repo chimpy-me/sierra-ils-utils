@@ -40,6 +40,7 @@ Every quirk is a card with the same four lines:
 | GET never bumps; a failed PUT (400) never bumps | By design | [Side effects](side-effects.md) |
 | Revisions counter: +2 per REST PUT vs +1 per Desktop save | Bug-or-quirk | [Side effects](side-effects.md) |
 | `fields=,` returns all fields; allow-lists may 400 | By design | [Reads & IDs](reads-and-ids.md) |
+| The item-type REST field is `itemType`, not `itype` | By design | [Reads & IDs](reads-and-ids.md) |
 | "Ghost records": GET 200 but PUT 404 | Bug-or-quirk | [Reads & IDs](reads-and-ids.md) |
 | API `id` = `record_num`, not the DB primary key | By design | [Reads & IDs](reads-and-ids.md) |
 | Multiple values packed into one varField | Data quality | [Reads & IDs](reads-and-ids.md) |

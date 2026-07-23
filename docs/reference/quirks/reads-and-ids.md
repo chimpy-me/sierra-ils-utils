@@ -22,6 +22,27 @@ resp = client.request("GET", f"patrons/{record_num}", params={"fields": ","})
 **How we know:** The `fields=,` trick has been relied on across multiple projects; separately, a
 plausible-looking field name returned `400` on one deployment's patron model.
 
+## The item-type REST field is `itemType`, not `itype`
+
+**Behavior:** On `GET items`, requesting `fields=itype` returns `400 Invalid parameter` — even though
+`itype` is what the SQL side calls it and the item's `fixedFields` I-TYPE slot is `61`. The REST field
+name is **`itemType`**, and it returns a *label* string (e.g. `"Juvenile Book"`), not the numeric
+I-TYPE code. The raw integer code is only reachable via `fields=fixedFields` (slot `61`) — which also
+returns the entire `fixedFields` block, including `66` (patron record id) and `67` (checkout) on a
+checked-out item.
+
+**Type:** By design (a REST field name doesn't always match the SQL/`fixedFields` name for the same
+datum).
+
+**How to handle:** Request `itemType` for the human label. If you need the numeric code *and* are
+keeping patron PII off your surface, you can't take it from `fixedFields` without also pulling 66/67 —
+derive the code from a reference-dim join on the label instead, or accept the label. General rule:
+never assume a field's SQL or `fixedFields` name is its REST name; probe before trusting an allow-list.
+
+**How we know:** Probed against sierra-test 2026-07-23: `fields=id,itype` → `400 Invalid parameter`;
+`fields=id,itemType` → `200` with `{"id": "...", "itemType": "Juvenile Book"}`. A bib+item harvest that
+requested `itype` silently sealed **0 items** — the 400 was swallowed as an empty result set.
+
 ## "Ghost records": GET 200 but PUT 404
 
 **Behavior:** Some records return `200` to a `GET` but `404` (`Patron record not found`) to a `PUT`.
