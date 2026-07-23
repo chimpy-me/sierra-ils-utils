@@ -54,6 +54,23 @@ for vf in varfields:
 client.request("PUT", f"patrons/{record_num}", json={"varFields": varfields})
 ```
 
+The **same code against an item does not remove the field** — it only blanks it. GET the record
+back and the entry is still there with empty content:
+
+```python
+# Items: empty content BLANKS the field, it is NOT removed.
+resp = client.request("GET", f"items/{record_num}", params={"fields": ","})
+varfields = resp.json().get("varFields", [])
+for vf in varfields:
+    if vf.get("fieldTag") == "x" and is_target(vf):
+        vf["content"] = ""
+client.request("PUT", f"items/{record_num}", json={"varFields": varfields})   # -> 204
+
+after = client.request("GET", f"items/{record_num}", params={"fields": ","}).json()["varFields"]
+[vf for vf in after if vf.get("fieldTag") == "x"]
+# -> [{"fieldTag": "x", "content": "", ...}]   # still present, just empty — NOT deleted
+```
+
 **How we know:** Probed against sierra-test on 2026-07-23 with a reversible add / omit / blank
 harness and a positive control (a sentinel field first proved the PUT actually mutates `varFields`,
 so a "survived" result couldn't be a silent no-op). Omitting a pre-existing note *or* barcode left
