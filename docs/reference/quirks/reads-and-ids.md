@@ -39,6 +39,20 @@ keeping patron PII off your surface, you can't take it from `fixedFields` withou
 derive the code from a reference-dim join on the label instead, or accept the label. General rule:
 never assume a field's SQL or `fixedFields` name is its REST name; probe before trusting an allow-list.
 
+```python
+# ❌ 400 Invalid parameter — `itype` is the SQL / fixedFields name, not the REST field name
+client.request("GET", "items", params={"fields": "id,itype"})
+
+# ✅ 200 — the REST field is `itemType`, and it returns a LABEL, not the numeric code
+resp = client.request("GET", "items", params={"fields": "id,itemType"})
+resp.json()["entries"][0]           # -> {"id": "...", "itemType": "Juvenile Book"}
+
+# The numeric I-TYPE code lives only in fixedFields slot 61 — but requesting fixedFields
+# returns the WHOLE block, including patron PII (slots 66/67) on a checked-out item.
+resp = client.request("GET", f"items/{record_num}", params={"fields": "fixedFields"})
+resp.json()["fixedFields"]["61"]    # the I-TYPE code slot (block also carries 66/67)
+```
+
 **How we know:** Probed against sierra-test 2026-07-23: `fields=id,itype` → `400 Invalid parameter`;
 `fields=id,itemType` → `200` with `{"id": "...", "itemType": "Juvenile Book"}`. A bib+item harvest that
 requested `itype` silently sealed **0 items** — the 400 was swallowed as an empty result set.
