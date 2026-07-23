@@ -30,11 +30,11 @@ Every quirk is a card with the same four lines:
 | Quirk | Type | Page |
 |---|---|---|
 | PUT `phones` is additive, not replacement | Bug-or-quirk | [Write semantics](write-semantics.md) |
-| PUT `varFields` merges; delete via empty content, not omission | By design | [Write semantics](write-semantics.md) |
+| PUT `varFields` replaces per `fieldTag` group (not whole-array, not merge) | By design | [Write semantics](write-semantics.md) |
 | A successful PUT returns `204`, not `200` | By design | [Write semantics](write-semantics.md) |
 | `fixedFields` PUT requires `label` beside `value` | By design | [Write semantics](write-semantics.md) |
 | PUT rejects ~9 read-only top-level fields | By design | [Write semantics](write-semantics.md) |
-| Empty `content` deletes a patron varField; blanks an item one | By design | [Write semantics](write-semantics.md) |
+| Empty `content` deletes a patron varField; blanks item/bib ones | By design | [Write semantics](write-semantics.md) |
 | `emails`/`phones`/`addresses`/`names` are derived projections | By design | [Write semantics](write-semantics.md) |
 | PUT bumps four `fixedFields` timestamps/counters, no opt-out | By design | [Side effects](side-effects.md) |
 | GET never bumps; a failed PUT (400) never bumps | By design | [Side effects](side-effects.md) |

@@ -17,68 +17,70 @@ phone entries.
 **How we know:** A pilot batch returned `204` (success) on every record, yet verification showed
 every record had gained duplicate phone entries. Removing the `phones` key from the payload fixed it.
 
-## PUT `varFields` is a merge — delete via empty content, not omission
+## PUT `varFields` replaces per `fieldTag` group
 
-**Behavior:** A `PUT` containing `varFields` **merges by field identity** — it does **not** replace
-the stored array wholesale. Omitting a pre-existing varField does **not** delete it; the omitted
-field survives untouched. Deletion works through **empty content** instead:
+**Behavior:** A `PUT` containing `varFields` is **neither a whole-array replace nor a plain merge**
+— it replaces **one `fieldTag` group at a time**. For every fieldTag present in your payload, Sierra
+rewrites that tag's entire group to exactly the fields you sent; a fieldTag you send **no** members
+of is left untouched. Two consequences that look contradictory until you see the rule:
 
-- **Patron records:** send the varField back with `content: ""` and Sierra **removes the entire
-  entry**.
-- **Item records:** `content: ""` only **blanks** the field — an empty shell stays on the record.
-  A clean, full removal of an item varField via REST appears unsupported (consistent with
-  Innovative treating item-varField deletion as an enhancement request).
+- Send one of a tag's two fields (drop the other) → the dropped sibling **is deleted**.
+- Send **none** of a tag → every field of that tag **survives** — which is why "just omit it from
+  the array" silently does nothing when the field is the *only* one of its tag.
 
-Sending `content: null` (as opposed to `""`) is rejected with `400 Invalid JSON`.
+**Type:** By design.
 
-One trap makes omission *look* like full replacement: a varField you **added via the API** in an
-earlier PUT and then omit **is** removed. If you only ever test add-then-remove, you will wrongly
-conclude the whole array is replaced on every write.
+### Deleting a field
 
-**Type:** By design (merge-by-identity).
+Two routes, depending on the field:
 
-**How to handle:**
+1. **It shares its `fieldTag` with fields you're keeping** — send those, omit the target. The
+   group is rewritten without it, so it's removed. Works on patron, item, and bib.
+2. **It's the only field of its tag** (or you want the whole tag gone) — omission can't do it
+   (sending none = untouched). Send the field with **empty `content`** instead. What that does is
+   **record-type-specific**:
 
-- **Editing** existing fields: GET-modify-PUT — fetch the full record (`fields=,`), change what you
-  need, PUT it back. Preserving each field's identity is what keeps updates from creating
-  duplicates. See [Safely edit a record](../../how-to/safe-get-modify-put.md).
-- **Deleting** a patron varField: send it with `content: ""`; don't rely on omitting it.
+| Field | `content: ""` | `subfields: []` | subfields blanked | `content: null` |
+|---|---|---|---|---|
+| **Patron** · content | **removed** | — | — | 400 |
+| **Item / Bib** · content | blanked to an empty shell (row stays) | — | — | 400 |
+| **Item / Bib** · subfields | 400 | 400 | blanked to an empty shell | — |
+
+So a **patron** content varField is the one field with a clean full removal by blanking. For item
+and bib fields — and any subfield-bearing field — blanking only leaves an empty shell; the only
+clean removal is route 1 (drop one of a repeated tag). This matches Innovative treating standalone
+item/bib varField deletion as an enhancement request.
+
+**Editing** an existing field: GET-modify-PUT — fetch `fields=,`, change the field in place, PUT
+back. Keeping each field's identity is what makes the group-replace *update* it rather than
+duplicate it. See [Safely edit a record](../../how-to/safe-get-modify-put.md).
 
 ```python
-# Delete a patron varField by blanking its content (NOT by omitting it):
+# Delete a patron varField by blanking its content (patrons drop empty-content entries):
 resp = client.request("GET", f"patrons/{record_num}", params={"fields": ","})
 varfields = resp.json().get("varFields", [])
 for vf in varfields:
     if vf.get("fieldTag") == "x" and is_target(vf):
-        vf["content"] = ""            # empty string, not None; Sierra drops the entry (patron)
+        vf["content"] = ""            # empty STRING, not None (null -> 400); patron drops the entry
 client.request("PUT", f"patrons/{record_num}", json={"varFields": varfields})
-```
 
-The **same code against an item does not remove the field** — it only blanks it. GET the record
-back and the entry is still there with empty content:
+# Delete ONE of several same-tag fields on ANY record type: send the keepers, omit the target.
+keep = [vf for vf in varfields if not is_target(vf)]   # target shares its fieldTag with a keeper
+client.request("PUT", f"items/{record_num}", json={"varFields": keep})   # target's tag-group rewritten w/o it
 
-```python
-# Items: empty content BLANKS the field, it is NOT removed.
-resp = client.request("GET", f"items/{record_num}", params={"fields": ","})
-varfields = resp.json().get("varFields", [])
-for vf in varfields:
-    if vf.get("fieldTag") == "x" and is_target(vf):
-        vf["content"] = ""
-client.request("PUT", f"items/{record_num}", json={"varFields": varfields})   # -> 204
-
+# On an item/bib, blanking only EMPTIES the field — the row stays (NOT a removal):
 after = client.request("GET", f"items/{record_num}", params={"fields": ","}).json()["varFields"]
-[vf for vf in after if vf.get("fieldTag") == "x"]
-# -> [{"fieldTag": "x", "content": "", ...}]   # still present, just empty — NOT deleted
+[vf for vf in after if vf.get("fieldTag") == "x"]   # -> [{"fieldTag": "x", "content": "", ...}]
 ```
 
-**How we know:** Probed against sierra-test on 2026-07-23 with a reversible add / omit / blank
-harness and a positive control (a sentinel field first proved the PUT actually mutates `varFields`,
-so a "survived" result couldn't be a silent no-op). Omitting a pre-existing note *or* barcode left
-it in place on **both** patron and item records; `content: ""` removed the field on **5/5** patrons
-tested (note fields) and only blanked-to-a-shell on items; `content: null` returned `400`. The
-earlier "full replacement / omit deletes everything" claim traced to an add-then-remove sentinel
-that exercised only the one case where omission deletes. Re-verify on your own deployment and Sierra
-version before relying on either behavior.
+**How we know:** Re-derived on sierra-test 2026-07-23 with a reversible probe
+(`scripts/probe-varfield-write-semantics.py`) that first proves each PUT mutates the record (a
+positive control), so a "survived" result can't be a silent no-op. The per-`fieldTag`-group rule
+was confirmed on **patron and bib** (drop one of a repeated tag → the sibling is deleted; drop the
+whole tag → all survive); the deletion table was measured on **patron, item, and bib** for both
+content and subfield fields. An earlier draft of this page called the behaviour "full replacement",
+then "merge" — both were partial views of the per-tag-group rule. Behaviour is deployment- and
+version-specific; re-run the probe on your own system before relying on it.
 
 ## A successful PUT returns `204`, not `200`
 
@@ -136,24 +138,23 @@ GETted" fails with `400 Invalid JSON : field(s) unknown : ...` listing fields su
 **How we know:** Surfaced building a rollback that PUT a full GET response verbatim; Sierra named the
 unknown fields in the `400`.
 
-## Empty-content varFields: dropped on patrons, blanked on items
+## Empty-content varFields: dropped on patrons, blanked on items and bibs
 
-**Behavior:** An entry whose `content` is empty behaves **differently by record type** on save (the
-PUT returns `204` either way):
+**Behavior:** An entry sent with empty `content` behaves **by record type** on save (the PUT
+returns `204` either way):
 
-- **Patron:** Sierra **removes the entry entirely** — this is the supported way to *delete* a patron
-  varField (see [PUT varFields is a merge](write-semantics.md) above).
-- **Item:** the entry is **kept with empty content** (an empty shell); it is *not* removed.
+- **Patron:** Sierra **removes the entry entirely** — the patron deletion lever (see
+  [PUT varFields replaces per fieldTag group](write-semantics.md) above).
+- **Item and bib:** the entry is **kept with empty content** (an empty shell); it is *not* removed.
 
-**Type:** By design on patrons (it is the deletion path); the item/patron split is a quirk.
+**Type:** By design on patrons (it is the deletion path); the patron-vs-item/bib split is a quirk.
 
 **How to handle:** If you *don't* intend a deletion, pre-filter empty-content varFields before
 sending (`if vf.get("content"):`) so you don't blank a patron field by accident. In before/after
 verification, treat "an empty patron varField disappeared" as expected.
 
 **How we know:** On sierra-test (2026-07-23), `content: ""` removed the field on every patron tested
-and left an empty shell on every item tested. Earlier: records holding an empty alternate-phone
-varField came back without it after a `204` PUT.
+and left an empty shell on every item and bib tested.
 
 ## `emails`/`phones`/`addresses`/`names` are derived projections
 

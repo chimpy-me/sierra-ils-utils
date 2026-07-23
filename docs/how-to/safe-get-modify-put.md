@@ -3,12 +3,13 @@
 **Goal:** change or delete `varFields` on a patron (or item) record without corrupting the
 fields you didn't touch.
 
-A `PUT` with `varFields` **merges by field identity** — omitting a field does *not* delete it
-(that surprises people; see
-[PUT varFields is a merge](../reference/quirks/write-semantics.md)). You still fetch the whole
-record and edit it in memory, because keeping each field's original identity is what stops an
-edit from creating a duplicate — and because **deletion is done by blanking a field's `content`,
-not by removing it from the array**.
+A `PUT` with `varFields` replaces **one `fieldTag` group at a time**: for every fieldTag you send,
+Sierra rewrites that tag's whole group with exactly what you sent, and leaves tags you send nothing
+of untouched (see
+[PUT varFields replaces per fieldTag group](../reference/quirks/write-semantics.md)). You still
+fetch the whole record and edit in memory — both so an update keeps each field's identity instead of
+duplicating it, and because **deleting** a field means either dropping it *while still sending its
+same-tag siblings*, or (patrons only) blanking its `content`.
 
 ## Before you start
 
@@ -31,9 +32,12 @@ varfields = record.get("varFields", [])
 Edit the list you fetched, leaving every entry you don't intend to change untouched.
 
 - To **change** a field: edit its `content` in place.
-- To **delete** a patron field: set its `content` to `""` (empty string) — on patrons Sierra
-  removes the entry on save. On items this only blanks the field (the row stays). Do **not** try
-  to delete by removing the entry from the array; omission is ignored.
+- To **delete** a field:
+    - if it shares its `fieldTag` with fields you're keeping → just leave it out; sending the
+      siblings rewrites that tag-group without it (works on any record type).
+    - if it's the **only** field of its tag → set `content` to `""` (patrons remove it; items/bibs
+      only blank it — no clean removal there). Don't expect leaving the sole field of a tag out of
+      the array to delete it — that sends zero of the tag, so Sierra leaves it untouched.
 - If you *don't* want a deletion, drop empty-content entries before sending so you don't blank a
   patron field by accident:
 
@@ -67,9 +71,10 @@ else:
 
 ## Gotchas this recipe already handles
 
-- **Merge, not replacement** — omitting a field does *not* delete it; delete by blanking a
-  field's `content` (patrons). Step 1's `fields=,` + PUT-back preserves each field's identity so
-  edits don't create duplicates.
+- **Per-tag-group replace** — omitting a field deletes it *only* if you still send another field
+  of the same `fieldTag`; the sole field of a tag survives omission. Delete singletons by blanking
+  `content` (patrons only). Step 1's `fields=,` + PUT-back preserves each field's identity so edits
+  don't create duplicates.
 - **Empty-content drop** — step 2 pre-filters so it doesn't surprise your verification.
 - **Read-only fields** — step 3 sends only `varFields`, avoiding the `400`.
 - **204 not 200** — step 4 checks the right status and never parses an empty body.
