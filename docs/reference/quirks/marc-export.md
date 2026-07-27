@@ -45,7 +45,7 @@ In practice only serials and periodicals reach the ceiling, since one item per i
 way a bib accumulates 600+ items. A bib only accumulates issues, so records near the ceiling cross it
 over time without anything changing on your side.
 
-**How we know:** CHPL production Sierra v6, read-only probes, 2026-07-27. Across 2,097,246 archived
+**How we know:** A production Sierra v6 deployment, read-only probes, 2026-07-27. Across 2,097,246 archived
 bib records the maximum observed `945` count is 595 and no record exceeds 99,999 bytes. Counting the
 directory's `945` entries by raw byte scan — no MARC library involved — and with `pymarc` gives the
 identical count, so nothing is being dropped client-side. Re-requesting the same bib returns the same
@@ -81,7 +81,7 @@ truncated record but not which one — re-request that batch's ids individually 
 resulting list is also exactly the worklist for re-fetching those bibs' holdings from
 `GET items?bibIds=`.
 
-**How we know:** CHPL production Sierra v6, 2026-07-27. Two bibs independently confirmed truncated
+**How we know:** A production Sierra v6 deployment, 2026-07-27. Two bibs independently confirmed truncated
 returned `errors: 1`; two ordinary bibs returned `errors: 0`.
 
 !!! warning "Small sample — confirm before you gate on it"
@@ -157,7 +157,7 @@ Beware `?expand=items` specifically — a `200` with no error makes it look like
 Because the per-record endpoints are a direct record read rather than an export job, they also carry
 no `errors` key — the signal described in the previous card exists only in the two-phase summary.
 
-**How we know:** CHPL production Sierra v6, 2026-07-27. Same bib on the same day through all three
+**How we know:** A production Sierra v6 deployment, 2026-07-27. Same bib on the same day through all three
 surfaces: 504 fields / 464 × `945` from the bulk export; 38 fields / 0 × `945` from both
 `marc-in-json` and `marc-xml`. Query-parameter spellings on `bibs/marc` were rejected `400`; the
 `Accept`-header spellings were probed individually against `bibs/{id}/marc`; the item-inclusion
