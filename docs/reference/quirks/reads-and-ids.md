@@ -10,17 +10,64 @@ fields — `varFields`, `fixedFields`, `phones`, etc. Without it, you get a mini
 explicit allow-list of field names is risky: some valid-sounding names cause a `400` (`Invalid
 parameter : <field> is not a valid field ...`) depending on what the deployment has materialized.
 
-**Type:** By design (the `fields=,` form is undocumented; allow-list rejection is deployment-specific).
+**"All" is not literal — `deletedDate` is accepted by name but omitted from `fields=,`.** On
+`GET bibs`, `fields=,` returns 27 keys and `deletedDate` is not among them, yet
+`fields=id,deletedDate` returns it happily. So `fields=,` means "all fields of a live record",
+not "every field the endpoint will serve". Anything you need for a *deleted* record must be
+named explicitly.
+
+**Type:** By design (the `fields=,` form is undocumented; allow-list rejection is
+deployment-specific; the `deletedDate` omission is consistent with `fields=,` projecting the
+live-record model).
 
 **How to handle:** Use `fields=,` whenever you need the full record (for example, before a
 GET-modify-PUT). Avoid building explicit allow-lists — they're deployment-specific landmines.
+But **do not assume `fields=,` covers delete-related fields**: pair it with an explicit
+`fields=id,deletedDate` call for the deleted side (see
+[Change polling → `fields=,` is rejected on a `deleted=true` query](change-polling.md)).
 
 ```python
 resp = client.request("GET", f"patrons/{record_num}", params={"fields": ","})
+
+# `deletedDate` must be named — it is NOT in the fields=, projection
+client.request("GET", "bibs", params={"fields": "id,deletedDate", "deleted": "true"})
 ```
 
 **How we know:** The `fields=,` trick has been relied on across multiple projects; separately, a
-plausible-looking field name returned `400` on one deployment's patron model.
+plausible-looking field name returned `400` on one deployment's patron model. The `deletedDate`
+omission was measured on sierra-test 2026-07-27: enumerating every candidate bib field found 26
+accepted by name, of which `deletedDate` was the only one missing from the `fields=,` response
+(`holdings` was the sole outright `400`).
+
+## `isRequestable` costs ~56× more per record than any other bib field
+
+**Behavior:** On `GET bibs`, including `isRequestable` in the projection raises per-record latency
+from ~1.3 ms to **~73 ms** — roughly 56×. Every other field measured (including the fat ones like
+`varFields`) costs ≤2.2 ms/rec. The field evaluates hold/request rules per bib, so Sierra does real
+work to answer it; bytes are not the issue, computation is.
+
+**Type:** By design (it is a computed field, not a stored one).
+
+**How to handle:** Leave `isRequestable` out of any bulk read. On a full-catalog sweep the
+difference is the difference between a coffee break and two days: a ~2.19M-bib harvest extrapolates
+to **~2.7 h** without it and **~48.6 h** with it, from the same page size and the same 25 other
+fields. If you need requestability for a *specific* bib, ask for it on that one record. The same
+caution likely applies to other computed fields — measure before adding one to a sweep.
+
+```python
+# ❌ one field turns a ~3-hour catalog sweep into a ~2-day one
+params = {"fields": ",", "id": "[1000001,]", "limit": 1000}
+
+# ✅ name the fields you want and omit the computed ones
+FIELDS = "id,updatedDate,title,author,fixedFields,varFields,locations,copies,available"
+params = {"fields": FIELDS, "id": "[1000001,]", "limit": 1000}
+```
+
+**How we know:** Probed against sierra-test 2026-07-27, isolating one field at a time over a fixed
+base of `id,updatedDate,title` (page of 200): base 1.3 ms/rec · `+locations` 2.2 · `+varFields` 2.1
+· `+fixedFields` 1.2 · `+copies`/`available`/`orders`/`volumes`/`items` 0.7–0.8 ·
+**`+isRequestable` 73.4**. Timings are from a test deployment and will differ on prod; the ratio is
+the durable signal.
 
 ## The item-type REST field is `itemType`, not `itype`
 

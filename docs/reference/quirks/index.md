@@ -39,7 +39,8 @@ Every quirk is a card with the same four lines:
 | PUT bumps four `fixedFields` timestamps/counters, no opt-out | By design | [Side effects](side-effects.md) |
 | GET never bumps; a failed PUT (400) never bumps | By design | [Side effects](side-effects.md) |
 | Revisions counter: +2 per REST PUT vs +1 per Desktop save | Bug-or-quirk | [Side effects](side-effects.md) |
-| `fields=,` returns all fields; allow-lists may 400 | By design | [Reads & IDs](reads-and-ids.md) |
+| `fields=,` returns all fields; allow-lists may 400 — but `deletedDate` is **not** in it | By design | [Reads & IDs](reads-and-ids.md) |
+| `isRequestable` costs ~56× more per record than any other bib field | By design | [Reads & IDs](reads-and-ids.md) |
 | The item-type REST field is `itemType`, not `itype` | By design | [Reads & IDs](reads-and-ids.md) |
 | "Ghost records": GET 200 but PUT 404 | Bug-or-quirk | [Reads & IDs](reads-and-ids.md) |
 | API `id` = `record_num`, not the DB primary key | By design | [Reads & IDs](reads-and-ids.md) |
@@ -51,9 +52,10 @@ Every quirk is a card with the same four lines:
 | `updatedDate` + `id` range filters AND together in one query | By design | [Change polling](change-polling.md) |
 | List responses cap at ~2000; detect end by a short page, not `total` | By design | [Change polling](change-polling.md) |
 | `deleted=false` hides server-deleted records (they vanish from polls) | By design | [Change polling](change-polling.md) |
+| `fields=,` returns **500** on a `deleted=true` query — name the fields | Bug-or-quirk | [Change polling](change-polling.md) |
 | MARC records cap at 99,999 bytes — bibs with many items lose their `945` tail | By design | [MARC export](marc-export.md) |
 | Truncation shows up *only* as `errors` in the MarcSummary; the MARC parses clean | Bug-or-quirk | [MARC export](marc-export.md) |
-| Bulk `bibs/marc` is binary-only; `bibs/{id}/marc` serves JSON/XML via `Accept` but carries no `945` | By design | [MARC export](marc-export.md) |
+| Bulk `bibs/marc` is binary-only; `bibs/{id}/marc` and `GET bibs`' `marc`/`varFields` are ceiling-free but carry no `945` | By design | [MARC export](marc-export.md) |
 | `suppressed` is a read-only boolean on bibs and items | By design | [Suppression](suppression.md) |
 | `suppressed=true` filters; suppressed records are otherwise returned inline | By design | [Suppression](suppression.md) |
 | Suppression rides in the MARC export — bib `998$e`, item `945$o` | By design | [Suppression](suppression.md) |

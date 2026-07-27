@@ -127,6 +127,36 @@ back" in a change poll — that false-positives on suppressed / no-MARC records.
 records as permanently-live rows; adding a `deletedDate` delete-poll plus an id reconcile was required
 to converge.
 
+## `fields=,` is rejected on a `deleted=true` query — the delete poll must name its fields
+
+**Behavior:** The `fields=,` "give me everything" form works on ordinary reads but **returns `500` on
+a `deleted=true` query**. Naming the fields explicitly succeeds immediately:
+
+```
+GET bibs?fields=,&deleted=true                  -> 500
+GET bibs?fields=id,deletedDate&deleted=true     -> 200
+   {"id": "1000042", "deletedDate": "2016-01-21"}
+```
+
+This compounds the omission documented in
+[Reads & IDs → `fields=,` returns all fields](reads-and-ids.md): `deletedDate` is *already* absent
+from a `fields=,` response, so the convenient form is both incomplete for deletes **and** fatal on
+the query shape where you'd want it. There is no `fields=,` path to delete data.
+
+**Type:** Bug-or-quirk (a `500` is a server fault, not a validation refusal — a `400` would at least
+name the problem).
+
+**How to handle:** Write the delete poll with an explicit, minimal projection —
+`fields=id,deletedDate` is all a tombstone cursor needs. Never reach for `fields=,` on the deleted
+channel, and don't let a shared request helper apply it there by default. Because the failure is a
+`500` rather than a `400`, a retry wrapper will happily burn its whole retry budget on it; make sure
+the delete poll surfaces the error instead of silently exhausting retries and reporting an empty
+day.
+
+**How we know:** Probed against sierra-test 2026-07-27 while designing a bib delete channel:
+`fields=,&deleted=true` returned `500` on every attempt including the final one, while
+`fields=id,deletedDate&deleted=true` returned `200` with 100 entries in 0.11 s.
+
 ## `bibs/marc` is a two-phase binary export — and `id` ranges keyset-paginate it
 
 **Behavior:** `bibs/marc` does **not** return JSON `entries` like `GET bibs`. It is a **two-phase
