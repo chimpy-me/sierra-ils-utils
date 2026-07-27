@@ -51,6 +51,9 @@ Every quirk is a card with the same four lines:
 | `updatedDate` + `id` range filters AND together in one query | By design | [Change polling](change-polling.md) |
 | List responses cap at ~2000; detect end by a short page, not `total` | By design | [Change polling](change-polling.md) |
 | `deleted=false` hides server-deleted records (they vanish from polls) | By design | [Change polling](change-polling.md) |
+| MARC records cap at 99,999 bytes — bibs with many items lose their `945` tail | By design | [MARC export](marc-export.md) |
+| Truncation shows up *only* as `errors` in the MarcSummary; the MARC parses clean | Bug-or-quirk | [MARC export](marc-export.md) |
+| Bulk `bibs/marc` is binary-only; `bibs/{id}/marc` serves JSON/XML via `Accept` but carries no `945` | By design | [MARC export](marc-export.md) |
 | `suppressed` is a read-only boolean on bibs and items | By design | [Suppression](suppression.md) |
 | `suppressed=true` filters; suppressed records are otherwise returned inline | By design | [Suppression](suppression.md) |
 | Suppression rides in the MARC export — bib `998$e`, item `945$o` | By design | [Suppression](suppression.md) |

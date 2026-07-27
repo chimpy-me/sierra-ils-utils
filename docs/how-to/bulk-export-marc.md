@@ -99,7 +99,11 @@ you only pay to parse + store the ones you need.
   skipped it; if it's empty, the orphan is genuine. (In a 179-page production run, 0 of 5,000 targeted
   ids were skipped — but verify on your deployment before trusting the sweep blind.)
 - **Round-trip fidelity:** `record.as_json()` round-trips to the same ISO-2709 leader + field tags, so
-  storing the JSON loses nothing.
+  storing the JSON loses nothing *relative to the file you were sent*. It does not recover anything
+  Sierra left out — a record truncated at the 99,999-byte ceiling converts to JSON just as truncated.
+- **Truncated records:** check `errors` in each MarcSummary. A nonzero value means at least one record
+  in that batch hit the byte ceiling and lost item (`945`) fields — with a `200` on both phases and a
+  perfectly parseable file. See *[MARC export](../reference/quirks/marc-export.md)*.
 
 ## Gotchas
 
@@ -109,10 +113,14 @@ you only pay to parse + store the ones you need.
 - **Don't enumerate ids.** An `id=1,2,3,…` list is capped at **50** and silently truncated — the slow,
   wrong tool for a full sweep. See *Reads & IDs → The 50-record cap applies to enumerated id lists*.
 - **Always DELETE the generated file** each page.
+- **This is not an item harvest.** MARC `945` fields are a partial convenience copy of holdings, and
+  bibs over 99,999 bytes lose the tail of them silently. If you need items, sweep
+  `GET items?bibIds=` instead — it has no such ceiling.
 
 ---
 
 **Underlying behavior (reference):**
 
+- [MARC export → the 99,999-byte ceiling, and `errors` as the only signal](../reference/quirks/marc-export.md)
 - [Change polling, ranges & pagination → `bibs/marc` is a two-phase binary export](../reference/quirks/change-polling.md)
 - [Reads & IDs → The 50-record cap applies to enumerated `id` lists, not ranges](../reference/quirks/reads-and-ids.md)
