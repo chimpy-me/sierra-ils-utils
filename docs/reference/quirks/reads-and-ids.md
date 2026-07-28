@@ -164,27 +164,56 @@ non-issue for normal use.
 **How we know:** A ladder test (100 → 8000 chars) on a test record stored every size verbatim with no
 truncation.
 
-## The 50-record cap applies to enumerated `id` lists, not `id=[ranges]`
+## The 50 on an enumerated `id` list is the *default page size* — set `limit`
 
-**Behavior:** When you fetch several records by listing their ids — `id=1001,1002,1003,…` — Sierra
-**silently caps the request at 50 ids** and drops the rest. No error, no warning: a 51-id request
-returns 50 records and looks identical to a valid one. This 50-cap is frequently mistaken for a limit
-on *range* queries. It is not. `id=[<start>,<end>]` is a **bounded range**, not an id list, and its page
-size is governed by the separate `limit=` parameter (capped ~2000 — see *Change polling*). So an
-enumerated batch tops out at 50 records per call, while one range page returns up to 2000.
+**Behavior:** When you fetch several records by listing their ids — `id=1001,1002,1003,…` — and you
+do **not** pass `limit=`, Sierra returns at most **50** records and silently drops the rest. No error,
+no warning: a 51-id request returns 50 and looks identical to a valid one.
 
-**Type:** By design (the 50-id list cap is undocumented, and the silent truncation past 50 is the trap).
+The 50 is Sierra's **default page size**, not a property of the id-list form. Setting `limit=` lifts
+it: `id=<251 ids>&limit=251` returns all 251. This holds on every surface tested — `items`, `volumes`,
+`bibs`, and `bibs/marc` alike. There is **no MARC-specific 50-cap**, and no per-resource carve-out.
 
-**How to handle:** For a handful of known ids, enumerate them but **chunk into ≤50-id requests** and
-assert you received every id back. For a bulk read across an id span, prefer a **range + `limit`** —
-one `id=[lo,hi]&limit=2000` call does the work of forty id-list calls — and for MARC specifically, the
-two-phase `bibs/marc` range sweep (see *Change polling*). Don't pack >50 ids into a list expecting more
-back, and don't push `limit` past ~2000.
+`limit` governs both request forms. The real difference between an enumerated list and a range
+(`id=[<start>,<end>]`) is not a cap but **throughput** — see *How to handle*.
 
-**How we know:** A 51-id request returned exactly 50 records, silently dropping the 51st; the same id
-span fetched as `id=[lo,hi]&limit=2000` returned the whole block in a single call. The throughput
-difference is dramatic and counterintuitive — a production MARC backfill that switched from 50-id
-enumerated batches to 2000-wide range pages went from **~100 records/min to ~55,000 records/min**
+> **Corrected 2026-07-28.** This card previously stated the 50 was a hard cap on the enumerated
+> id-list form that `limit` could not lift, and advised chunking into ≤50-id requests. That was wrong.
+> The original observation ("a 51-id request returned 50") did not record whether `limit` was set —
+> it wasn't, and the default page size fully explains it. The error propagated: one downstream tenant
+> chunked at 50 for no reason, and another invented an unsupported "the 50-cap is bibs/marc-only"
+> justification for batching at 250 (a correct decision reached by wrong reasoning).
+
+**Type:** By design (the default page size is undocumented, and the silent truncation when you exceed
+it without setting `limit` is the trap).
+
+**How to handle:** When enumerating ids, **always set `limit` ≥ the number of ids you send**, and
+**assert you received every id back**. Treat a response holding exactly the page size with ids missing
+as a truncation, not as "those records are deleted" — absent-means-deleted is a common inference, and
+a silent truncation is indistinguishable from a mass delete unless you check.
+
+For a bulk read across an id span, still prefer a **range + `limit`**: one `id=[lo,hi]&limit=2000` call
+does the work of forty 50-id calls, and for MARC the two-phase `bibs/marc` range sweep (see *Change
+polling*). That advice is about per-request overhead, not about a cap. Don't push `limit` past ~2000.
+
+**How we know:** Probed against a production Sierra v6 deployment, 2026-07-28, on `items`, `volumes`,
+`bibs` and `bibs/marc`. Each surface was sent the same id set three ways, after a self-test that sent
+51 ids with an explicit `limit=50` and confirmed exactly 50 came back (so the probe could demonstrably
+detect a truncation before any verdict was read):
+
+| request | records returned |
+|---|---|
+| 51 ids, no `limit` | 50 — and the dropped id is the **last** requested, i.e. ordinary page truncation |
+| 51 ids, `limit=51` | 51 |
+| 251 ids, `limit=251` | 251 |
+
+Identical on all four surfaces. For `bibs/marc` the counts were parsed out of the downloaded `.mrc`
+(ids read from `907$a`) rather than taken from the summary's `outputRecords`, since a self-reported
+count cannot evidence the absence of silent drops. `limit` was not probed beyond 251; the ~2000
+ceiling documented in *Change polling* is untested here.
+
+The throughput finding is unaffected and still holds: a production MARC backfill that switched from
+50-id enumerated batches to 2000-wide range pages went from **~100 records/min to ~55,000 records/min**
 against the *same* catalog. The bottleneck was never Sierra's MARC assembly; it was per-request
 overhead paid once per 50 records instead of once per 2000. For a cold bulk read, **make pages bigger,
 not threads more** — raising concurrency on the id-list form only multiplied timeouts.

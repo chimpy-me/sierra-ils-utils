@@ -110,8 +110,11 @@ you only pay to parse + store the ones you need.
 - **Keep it single-threaded.** This endpoint is fast *because* each call returns 2000 records; adding
   concurrency on top mostly multiplies timeouts. Don't reach for it.
 - **`limit` caps at ~2000.** Asking for more silently gives you 2000.
-- **Don't enumerate ids.** An `id=1,2,3,…` list is capped at **50** and silently truncated — the slow,
-  wrong tool for a full sweep. See *Reads & IDs → The 50-record cap applies to enumerated id lists*.
+- **Don't enumerate ids** for a full sweep — a range page is dramatically faster (per-request overhead
+  paid once per 2000 records instead of once per page of a list). If you *do* enumerate, always set
+  `limit` ≥ the id count: without it you get Sierra's default page of **50**, silently truncated. This
+  is a default page size, not a MARC-specific cap. See *Reads & IDs → The 50 on an enumerated `id` list
+  is the default page size*.
 - **Always DELETE the generated file** each page.
 - **This is not an item harvest.** MARC `945` fields are a partial convenience copy of holdings, and
   bibs over 99,999 bytes lose the tail of them silently. If you need items, sweep
@@ -123,4 +126,4 @@ you only pay to parse + store the ones you need.
 
 - [MARC export → the 99,999-byte ceiling, and `errors` as the only signal](../reference/quirks/marc-export.md)
 - [Change polling, ranges & pagination → `bibs/marc` is a two-phase binary export](../reference/quirks/change-polling.md)
-- [Reads & IDs → The 50-record cap applies to enumerated `id` lists, not ranges](../reference/quirks/reads-and-ids.md)
+- [Reads & IDs → The 50 on an enumerated `id` list is the default page size](../reference/quirks/reads-and-ids.md)

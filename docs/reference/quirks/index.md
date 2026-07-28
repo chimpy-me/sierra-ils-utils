@@ -46,6 +46,7 @@ Every quirk is a card with the same four lines:
 | API `id` = `record_num`, not the DB primary key | By design | [Reads & IDs](reads-and-ids.md) |
 | Multiple values packed into one varField | Data quality | [Reads & IDs](reads-and-ids.md) |
 | varField content length ceiling is ≥ 8000 chars | By design | [Reads & IDs](reads-and-ids.md) |
+| An enumerated `id` list silently returns only the default page of 50 unless you set `limit` | By design | [Reads & IDs](reads-and-ids.md) |
 | Zero-match range query may 404 (`code 107`) — and query shapes disagree | Bug-or-quirk | [Change polling](change-polling.md) |
 | `deletedDate` is date-only; `updatedDate` is a full timestamp | By design | [Change polling](change-polling.md) |
 | `GET bibs` returns entries ascending by `id` (keyset-paginable) | By design | [Change polling](change-polling.md) |
