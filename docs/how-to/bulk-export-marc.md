@@ -116,9 +116,10 @@ you only pay to parse + store the ones you need.
   is a default page size, not a MARC-specific cap. See *Reads & IDs → The 50 on an enumerated `id` list
   is the default page size*.
 - **Always DELETE the generated file** each page.
-- **This is not an item harvest.** MARC `945` fields are a partial convenience copy of holdings, and
-  bibs over 99,999 bytes lose the tail of them silently. If you need items, sweep
-  `GET items?bibIds=` instead — it has no such ceiling.
+- **This is not an item harvest.** MARC `945` fields are a partial convenience copy of a bib's item
+  data, and bibs over 99,999 bytes lose the tail of them silently. If you need items, sweep
+  `GET items?bibIds=` instead — it has no such ceiling. For why the limit exists, see
+  [Why MARC exports lose item data](../explanation/marc-record-size-and-embedded-item-data.md).
 
 ---
 
