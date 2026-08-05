@@ -169,8 +169,9 @@ same thing.
 
 **And the machine-readable enumeration is largely unpopulated.** Field `863` carries the enumeration
 that would be needed to expand a holdings statement into specific pieces. Measured across 22,428
-holdings records on one deployment, `863` appears on **4.4%** of them — and on **none** of the five
-bibs whose exports actually break. A compact representation that is empty is not a representation.
+holdings records on a non-production Sierra deployment (a lagging clone of
+production, read-only SQL probe, 2026-08-04), `863` appears on **4.4%** of them — and on **none** of
+the five bibs whose exports actually break. A compact representation that is empty is not a representation.
 
 The general shape of the error, in both cases, is reasoning from what a schema *permits* to what the
 data *contains*.
