@@ -10,8 +10,8 @@ The two-phase export has a failure mode worth knowing before you build on it: it
    MarcSummary JSON — carrying record counts and a URL for a server-generated `.mrc` file.
 2. **You download that file.** A second `GET` returns raw binary ISO-2709.
 
-You then `DELETE` the file, or generated files accumulate server-side. Parsing happens locally,
-afterwards, and is not one of the phases.
+You then `DELETE` the file, or generated files accumulate server-side — a cleanup obligation rather
+than a third phase. Parsing is also yours to do, locally and afterwards, and is likewise not a phase.
 
 The distinction matters for one specific reason: **the receipt is the only place truncation is
 reported.** By the time you are holding the bytes, the signal is gone. That is the subject of this
@@ -57,15 +57,18 @@ absent, with nothing in the file to say so.
 2000-row pages. Treat the MARC export as bibliographic data that happens to carry a partial item
 convenience copy. If you must rely on the export, at minimum detect the truncation (next card).
 
-In practice only serials and periodicals reach the ceiling, since one item per issue is the realistic
-way a bib accumulates 600+ items. A bib only accumulates issues, so records near the ceiling cross it
-over time without anything changing on your side.
+Serials reach the ceiling most often — a bib that accumulates one item per issue gets there without
+anything changing on your side — but they are **not the only records that do**. On one production
+catalog, 33 monograph-level bibs carry 400 or more items, the largest carrying 754, which is past the
+truncation band measured above. Do not filter your truncation checks by bibliographic level.
 
 **How we know:** A production Sierra v6 deployment, read-only probes, 2026-07-27. Across 2,097,246 archived
 bib records the maximum observed `945` count is 595 and no record exceeds 99,999 bytes. Counting the
 directory's `945` entries by raw byte scan — no MARC library involved — and with `pymarc` gives the
 identical count, so nothing is being dropped client-side. Re-requesting the same bib returns the same
-truncated record.
+truncated record. The bibliographic-level breakdown is a second measurement, taken on the same
+production deployment 2026-08-05 by read-only SQL: of 104 bibs with 400 or more attached items, 71 are
+serials (max 5,928 items) and 33 are monographs (max 754).
 
 ## Truncation is reported only as `errors` in the MarcSummary — the HTTP calls succeed and the MARC is valid
 
