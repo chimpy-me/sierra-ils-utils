@@ -10,7 +10,7 @@ The short version, which the rest of this page unpacks:
 > Sierra is not unusual in hitting the ceiling. It is unusual in not telling you.
 
 !!! note "A word on 'holdings'"
-    MARC 21 uses *holdings* as an umbrella term covering single-part, multipart, and serial items —
+    MARC 21 uses *holdings* as an umbrella term covering single-part, multipart, and serial bibliographic units —
     a one-volume book has a holdings statement — with item-level detail carried at `876`–`878`. In
     Sierra, and in most day-to-day library conversation, a **holdings record** means something
     narrower: the serials check-in record, with `853` publication patterns and `866` textual
@@ -32,19 +32,20 @@ holdings this way, only field `852` (Location) is required, and item-level detai
 
 This matters because it means the flattening is not a vendor hack around a missing feature. It is a
 recognised shape that the standard describes — the vendors simply did not use the standard's fields
-for it.
+for it. Using them would not have raised the ceiling, incidentally — `876`–`878` consume bytes like
+any other field.
 
 ## Why every vendor invented its own field
 
 MARC 21 reserves the entire `9XX` block for **local implementation** and defines nothing in it. That
 is an invitation, and every ILS accepted it differently:
 
-| ILS | Items embedded as | Standard field? |
-|---|---|---|
-| Sierra (III) | `945`, plus `907` record number and `998` BCODE3 | no — local `9XX` |
-| Koha | `952` | no — local `9XX` |
-| Symphony (SirsiDynix) | `999` | no — local `9XX` |
-| Evergreen | `852` | **yes** |
+| ILS | Items embedded as | Standard field? | How we know |
+|---|---|---|---|
+| Sierra (III) | `945`, plus `907` record number and `998` BCODE3 | no — local `9XX` | measured; see the MARC export card |
+| Koha | `952` | no — local `9XX` | Koha manual |
+| Symphony (SirsiDynix) | `999` | no — local `9XX` | VuFind's SirsiDynix export notes |
+| Evergreen | `852` | **yes** | Evergreen `marc_export` docs |
 
 Four systems, four answers, and only Evergreen uses a standard holdings tag. The consequence is
 worth stating plainly for anyone building a harvester:
@@ -77,8 +78,8 @@ count of what was omitted. That asymmetry is the part that is fairly Sierra's.
 
 ## What a fix would look like
 
-These are proposals from the community and from the structure of the problem, ranked by how little
-they ask of everyone. None of them is implemented in Sierra today.
+These are proposals from the community and from the structure of the problem, ordered by how much
+they would disturb. None of them is implemented in Sierra today.
 
 ### 1. A sentinel length — `00000`, not `99999`
 
@@ -104,16 +105,18 @@ rather than taking the 2010 write-up on faith:
     A record with an internal field terminator overwritten, and one with a directory entry's
     start position shifted 40 bytes, both parsed with every field recovered.
 
-So the recommendation survives — in its `00000` form only. To this parser a `99999` length is not a
-harmless placeholder; it is a promise about how many bytes follow, and the parser holds you to it.
+So the recommendation survives — in its `00000` form only. This parser rejects the `99999` form
+outright, raising `TruncatedRecord` and recovering nothing.
 
 It is tempting to explain this by saying MARC parsers locate boundaries by the field and record
-terminators rather than by the leader's length. **Our measurements do not support that as stated.**
-The same probe found pymarc recovering every field from a record whose internal field terminator had
-been overwritten, and from one whose first directory entry pointed forty bytes off target — yet
-failing cleanly when the record was truncated or its final record terminator destroyed. That is
-enough to know the parser is not naively trusting the leader's length, and not enough to say what it
-*is* doing. **Treat the mechanism as an open question**; what is measured is the table above.
+terminators rather than by the leader's length. **Our measurements do not settle that.** The
+`00000` row above is the reason to doubt the simplest story: a parser that merely believed the
+leader would have read zero bytes and recovered nothing, and instead every field came back. But the
+rest of the probe cuts across any tidy account — pymarc recovered every field from a record whose
+internal field terminator had been overwritten, and from one whose first directory entry pointed
+forty bytes off target, yet failed cleanly when the record was truncated or its final record
+terminator destroyed. **Treat the mechanism as an open question**; what is measured is the table
+above.
 
 ### 2. Name the truncated record
 
@@ -125,7 +128,7 @@ Today truncation surfaces as `errors: 1` in the phase-1 summary — a bare count
 ```
 
 …would be additive and non-breaking, and it converts a silent failure into a loud one. Of the three,
-this asks the least and buys the most.
+this is the smallest change with the largest effect.
 
 ### 3. Honor `Accept` on the bulk endpoint
 
@@ -151,15 +154,18 @@ behavior of all three surfaces.
     The cheapest way to settle it: run `marc_export -f XML --items` against an Evergreen demo
     instance and count `852` fields on a bib with a high item count. If several systems manage it,
     Sierra's mutual exclusivity is a genuine outlier. If none do, then Sierra is ordinary here and
-    only the silence is criticisable.
+    only the silence is unusual.
 
 ## What this does not mean
 
 One inference is tempting and wrong, so it is worth closing off explicitly.
 
-Sierra does implement MARC holdings records, and does expose them over REST. It would seem to follow
-that a bib with thousands of items could be represented compactly by a holdings record instead of by
-thousands of `945` fields. **It does not follow, for two independent reasons.**
+Sierra does implement MARC holdings records, and does expose them over REST — confirmed by
+read-only probe of `GET /v6/holdings` on sierra-test, 2026-08-04, which returned genuine MFHD
+structure (`853` caption/pattern and `866` textual holdings, with `001` and `004` linkage). It would
+seem to follow that a bib with thousands of items could be represented compactly by a holdings
+record instead of by thousands of `945` fields. **It does not follow, for two independent
+reasons.**
 
 **Holdings records are not item records.** Sierra's holdings records are serials constructs: a
 predictive publication pattern (`853`) plus a textual statement (`866`) expressing "we hold v.1–50."
@@ -169,9 +175,9 @@ same thing.
 
 **And the machine-readable enumeration is largely unpopulated.** Field `863` carries the enumeration
 that would be needed to expand a holdings statement into specific pieces. Measured across 22,428
-holdings records on a non-production Sierra deployment (a lagging clone of
-production, read-only SQL probe, 2026-08-04), `863` appears on **4.4%** of them — and on **none** of
-the five bibs whose exports actually break. A compact representation that is empty is not a representation.
+holdings records on sierra-test, a lagging clone of production (read-only SQL probe, 2026-08-04),
+`863` appears on **4.4%** of them — and on **none** of the five highest-item-count bibs on that
+deployment. A compact representation that is empty is not a representation.
 
 The general shape of the error, in both cases, is reasoning from what a schema *permits* to what the
 data *contains*.
