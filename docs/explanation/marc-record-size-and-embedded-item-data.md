@@ -83,9 +83,11 @@ they would disturb. None of them is implemented in Sierra today.
 
 ### 1. A sentinel length — `00000`, not `99999`
 
-Rochkind's 2010 *Spec for a better ILS MARC exporter* recommends that a record too long for MARC 21
-be emitted with `99999` in the Leader's length (or `00000`), and `9999` in an over-long field's
-directory length — while **every other byte offset stays correct and legal**.
+Rochkind's 2010 [*Spec for a better ILS MARC exporter*](https://bibwild.wordpress.com/2010/04/06/spec-for-a-better-ils-marc-exporter/)
+([archived 2017-03-11](https://web.archive.org/web/20170311060830/https://bibwild.wordpress.com/2010/04/06/spec-for-a-better-ils-marc-exporter/))
+recommends that a record too long for MARC 21 be emitted with `99999` in the Leader's length (or
+`00000`), and `9999` in an over-long field's directory length — while **every other byte offset stays
+correct and legal**.
 
 This preserves the flattening the whole ecosystem depends on, needs no new format, and asks nothing
 of clients that already handle such records.
@@ -192,14 +194,17 @@ data *contains*.
 
 ## Sources
 
-- [LC — MARC 21 Specifications for Record Structure](https://www.loc.gov/marc/specifications/specrecstruc.html)
-- [LC — MARC 21 Format for Holdings Data: Leader](https://www.loc.gov/marc/holdings/hdleader.html)
-- [LC — MFHD 863: Enumeration and Chronology](https://www.loc.gov/marc/holdings/hd863.html)
-- [OCLC — MARC 21 Format for Holdings Data primer](https://help.oclc.org/Metadata_Services/Local_Holdings_Maintenance/A_holdings_primer/20MARC_21_Format_for_Holdings_Data)
-- [Rochkind — Spec for a better ILS MARC exporter (2010)](https://bibwild.wordpress.com/2010/04/06/spec-for-a-better-ils-marc-exporter/)
-- [Rochkind — Structural MARC problems you may encounter](https://bibwild.wordpress.com/2010/02/02/structural-marc-problems-you-may-encounter/)
-- [Ex Libris — Limit on size of exported bib record (with items expanded into it)](https://knowledge.exlibrisgroup.com/Aleph/Knowledge_Articles/%22Directory_does_not_exist%22_messages_written_repeatedly_to_sqlnet.log/Limit_on_size_of_exported_bib_record_(with_items_expanded_into_it))
-- [Ex Libris — Maximum length of MARC records in Voyager](https://knowledge.exlibrisgroup.com/Voyager/Knowledge_Articles/Maximum_length_of_MARC_records_in_Voyager)
-- [Koha Manual — Cataloging](https://koha-community.org/manual/latest/en/html/cataloging.html)
-- [Evergreen — `marc_export`](https://olddocs.evergreen-ils.org/docs/3.5/_marc_export_exporting_bibliographic_records_into_marc_files.html)
-- [VuFind — SirsiDynix export notes](https://vufind.org/wiki/indexing:marc:export_notes:sirsidynix)
+Each source links to the live page, followed by a dated Wayback snapshot. Where the two disagree, the
+snapshot is the version this page was written against.
+
+- [LC — MARC 21 Specifications for Record Structure](https://www.loc.gov/marc/specifications/specrecstruc.html) ([archived 2026-07-31](https://web.archive.org/web/20260731132347/https://www.loc.gov/marc/specifications/specrecstruc.html))
+- [LC — MARC 21 Format for Holdings Data: Leader](https://www.loc.gov/marc/holdings/hdleader.html) ([archived 2025-12-17](https://web.archive.org/web/20251217050825/https://www.loc.gov/marc/holdings/hdleader.html))
+- [LC — MFHD 863: Enumeration and Chronology](https://www.loc.gov/marc/holdings/hd863.html) ([archived 2025-09-29](https://web.archive.org/web/20250929144130/https://www.loc.gov/marc/holdings/hd863.html))
+- [OCLC — MARC 21 Format for Holdings Data primer](https://help.oclc.org/Metadata_Services/Local_Holdings_Maintenance/A_holdings_primer/20MARC_21_Format_for_Holdings_Data) ([archived 2026-03-08](https://web.archive.org/web/20260308100528/https://help.oclc.org/Metadata_Services/Local_Holdings_Maintenance/A_holdings_primer/20MARC_21_Format_for_Holdings_Data))
+- [Rochkind — Spec for a better ILS MARC exporter (2010)](https://bibwild.wordpress.com/2010/04/06/spec-for-a-better-ils-marc-exporter/) ([archived 2017-03-11](https://web.archive.org/web/20170311060830/https://bibwild.wordpress.com/2010/04/06/spec-for-a-better-ils-marc-exporter/))
+- [Rochkind — Structural MARC problems you may encounter](https://bibwild.wordpress.com/2010/02/02/structural-marc-problems-you-may-encounter/) ([archived 2023-06-02](https://web.archive.org/web/20230602215234/https://bibwild.wordpress.com/2010/02/02/structural-marc-problems-you-may-encounter/))
+- [Ex Libris — Limit on size of exported bib record (with items expanded into it)](https://knowledge.exlibrisgroup.com/Aleph/Knowledge_Articles/%22Directory_does_not_exist%22_messages_written_repeatedly_to_sqlnet.log/Limit_on_size_of_exported_bib_record_(with_items_expanded_into_it)) ([archived 2026-02-18](https://web.archive.org/web/20260218174100/https://knowledge.exlibrisgroup.com/Aleph/Knowledge_Articles/%22Directory_does_not_exist%22_messages_written_repeatedly_to_sqlnet.log/Limit_on_size_of_exported_bib_record_(with_items_expanded_into_it)))
+- [Ex Libris — Maximum length of MARC records in Voyager](https://knowledge.exlibrisgroup.com/Voyager/Knowledge_Articles/Maximum_length_of_MARC_records_in_Voyager) ([archived 2026-02-18](https://web.archive.org/web/20260218182238/https://knowledge.exlibrisgroup.com/Voyager/Knowledge_Articles/Maximum_length_of_MARC_records_in_Voyager))
+- [Koha Manual — Cataloging](https://koha-community.org/manual/latest/en/html/cataloging.html) ([archived 2026-06-07](https://web.archive.org/web/20260607141719/https://koha-community.org/manual/latest/en/html/cataloging.html))
+- [Evergreen — `marc_export`](https://olddocs.evergreen-ils.org/docs/3.5/_marc_export_exporting_bibliographic_records_into_marc_files.html) ([archived 2026-08-05](https://web.archive.org/web/20260805152140/https://olddocs.evergreen-ils.org/docs/3.5/_marc_export_exporting_bibliographic_records_into_marc_files.html))
+- [VuFind — SirsiDynix export notes](https://vufind.org/wiki/indexing:marc:export_notes:sirsidynix) ([archived 2026-08-05](https://web.archive.org/web/20260805152159/https://vufind.org/wiki/indexing:marc:export_notes:sirsidynix?testvufw=1))
