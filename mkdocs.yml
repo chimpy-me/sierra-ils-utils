@@ -67,4 +67,5 @@ nav:
           - Patron validation (validate): reference/quirks/patron-validate.md
   - Explanation:
       - Why writes have side effects: explanation/sierra-rest-thin-projection.md
+      - Why MARC exports lose item data: explanation/marc-record-size-and-embedded-item-data.md
       - Discovering quirks yourself: explanation/discover-quirks-yourself.md
